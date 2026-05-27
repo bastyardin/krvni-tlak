@@ -302,6 +302,13 @@
     </div>
   </header>
 
+  <!-- OBVESTILO O ZASEBNOSTI -->
+  <div style="background: #e8f5e9; border-bottom: 1px solid #c8e6c9; padding: 10px 30px; font-size: 0.88em; color: #1b5e20; display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; text-align: center;">
+    <span style="font-size: 1.1em;">🔒</span>
+    <span><strong>Zasebnost zagotovljena:</strong> Vsi podatki ostanejo izključno v vašem brskalniku. Avtor nima dostopa do njih in jih ne zbira.</span>
+    <a href="#" onclick="prikaziZavihek('zasebnost'); return false;" style="color: #1565C0; text-decoration: underline; font-weight: bold;">Več o zasebnosti &raquo;</a>
+  </div>
+
   <nav class="tabs">
     <button class="tab active" data-tab="vnos">Vnos meritve</button>
     <button class="tab" data-tab="pregled">Pregled in tabela</button>
@@ -310,6 +317,7 @@
     <button class="tab" data-tab="opomniki">Opomniki</button>
     <button class="tab" data-tab="izvoz">Izvoz podatkov</button>
     <button class="tab" data-tab="info">Informacije</button>
+    <button class="tab" data-tab="zasebnost">Zasebnost</button>
   </nav>
 
   <div class="content">
@@ -677,6 +685,110 @@
       </p>
     </section>
 
+    <!-- ZASEBNOST -->
+    <section class="section" id="zasebnost">
+      <h2 style="margin-bottom: 15px;">Politika zasebnosti in obvestilo GDPR</h2>
+
+      <div class="info-box" style="background: #e8f5e9; border-left: 4px solid #2E7D32; color: #1b5e20;">
+        <strong>🔒 Kratek povzetek:</strong> Ta aplikacija <strong>NE zbira, NE shranjuje in NE pošilja</strong>
+        vaših osebnih ali zdravstvenih podatkov nikamor. Vsi podatki ostanejo izključno v vašem brskalniku
+        na vaši napravi. Avtor aplikacije nima dostopa do njih.
+      </div>
+
+      <h3 style="margin-top: 25px;">1. Kdo upravlja to aplikacijo</h3>
+      <p style="margin-top: 10px; line-height: 1.6;">
+        Aplikacijo "Dnevnik krvnega tlaka" je razvil in jo brezplačno daje na voljo
+        <strong>Boštjan Čebron</strong>, kot zasebnik (ne kot pravna oseba).
+        Kontakt: <a href="mailto:bostjancebron76@gmail.com" onclick="return klikEmail(event, 'bostjancebron76@gmail.com')" style="color: #1565C0;">bostjancebron76@gmail.com</a>
+      </p>
+
+      <h3 style="margin-top: 25px;">2. Kateri podatki se obdelujejo</h3>
+      <p style="margin-top: 10px; line-height: 1.6;">
+        Aplikacija obdeluje samo podatke, ki jih sami vnesete:
+      </p>
+      <ul style="margin-left: 25px; margin-top: 10px; line-height: 1.8;">
+        <li>Meritve krvnega tlaka (sistolični, diastolični tlak, utrip)</li>
+        <li>Datum in čas meritve, obdobje dneva, roka, opombe</li>
+        <li>Neobvezni profilni podatki (ime, starost, spol, telesna teža itd.)</li>
+        <li>Nastavitve opomnikov</li>
+      </ul>
+
+      <h3 style="margin-top: 25px;">3. Kje so podatki shranjeni</h3>
+      <p style="margin-top: 10px; line-height: 1.6;">
+        Vsi podatki so shranjeni <strong>lokalno v vašem brskalniku</strong> z uporabo standardne tehnologije
+        <em>localStorage</em>. To pomeni:
+      </p>
+      <ul style="margin-left: 25px; margin-top: 10px; line-height: 1.8;">
+        <li>Podatki <strong>nikoli</strong> ne zapustijo vaše naprave</li>
+        <li>Avtor aplikacije <strong>nima dostopa</strong> do vaših podatkov</li>
+        <li>Ni nobenega strežnika ali zunanje baze, kamor bi se podatki pošiljali</li>
+        <li>Aplikacija deluje tudi brez internetne povezave (po prvem nalaganju)</li>
+      </ul>
+
+      <h3 style="margin-top: 25px;">4. Piškotki in sledilniki</h3>
+      <p style="margin-top: 10px; line-height: 1.6;">
+        Aplikacija <strong>ne uporablja piškotkov za sledenje</strong>, <strong>ne vsebuje oglasov</strong>
+        in <strong>ne uporablja analitičnih orodij</strong> (kot so Google Analytics, Facebook Pixel itd.).
+        Edini tehnični mehanizem za shranjevanje je localStorage, ki služi izključno za hranjenje vaših meritev v brskalniku.
+      </p>
+
+      <h3 style="margin-top: 25px;">5. Vaše pravice po GDPR</h3>
+      <p style="margin-top: 10px; line-height: 1.6;">
+        Ker avtor aplikacije ne obdeluje vaših podatkov, jih popolnoma nadzirate sami. Vaše pravice lahko uveljavite neposredno:
+      </p>
+      <ul style="margin-left: 25px; margin-top: 10px; line-height: 1.8;">
+        <li><strong>Pravica do vpogleda:</strong> Vse meritve si lahko ogledate v zavihkih "Pregled in tabela" ter "Graf"</li>
+        <li><strong>Pravica do prenosljivosti:</strong> Podatke lahko izvozite v formatu CSV (Excel), PDF ali JSON v zavihku "Izvoz podatkov"</li>
+        <li><strong>Pravica do popravka:</strong> Vsako meritev lahko uredite ali popravite kadarkoli</li>
+        <li><strong>Pravica do izbrisa:</strong> Posamezne meritve lahko izbrišete v tabeli pregleda. Vse podatke lahko izbrišete s čiščenjem zgodovine brskalnika (za to spletno stran)</li>
+      </ul>
+
+      <h3 style="margin-top: 25px;">6. Varnost podatkov</h3>
+      <p style="margin-top: 10px; line-height: 1.6;">
+        Ker so podatki samo na vaši napravi, je varnost odvisna predvsem od vas:
+      </p>
+      <ul style="margin-left: 25px; margin-top: 10px; line-height: 1.8;">
+        <li>Uporabljajte zaklepanje zaslona oz. geslo na svoji napravi</li>
+        <li>Občasno izvozite varnostno kopijo (JSON datoteka v zavihku "Izvoz podatkov")</li>
+        <li>Pomnite: če počistite zgodovino brskalnika ali namestite drug brskalnik, boste izgubili shranjene podatke</li>
+        <li>Aplikacija je dostopna preko HTTPS povezave, ki ščiti prenos same aplikacije</li>
+      </ul>
+
+      <h3 style="margin-top: 25px;">7. Otroci</h3>
+      <p style="margin-top: 10px; line-height: 1.6;">
+        Aplikacija je namenjena odraslim uporabnikom. Otroci do 16. leta naj jo uporabljajo
+        le pod nadzorom staršev ali skrbnikov.
+      </p>
+
+      <h3 style="margin-top: 25px;">8. Zdravniški pridržek</h3>
+      <div class="warning-box" style="margin-top: 10px;">
+        Ta aplikacija je informativno orodje za beleženje meritev in <strong>ni medicinski pripomoček</strong>.
+        Ne nadomešča zdravniške diagnoze, zdravljenja ali nasveta. Pri zdravstvenih odločitvah se vedno
+        posvetujte s svojim zdravnikom.
+      </div>
+
+      <h3 style="margin-top: 25px;">9. Spremembe te politike</h3>
+      <p style="margin-top: 10px; line-height: 1.6;">
+        Politika zasebnosti se lahko v prihodnosti posodobi. Veljavna različica je vedno objavljena
+        v tem zavihku v aplikaciji. Datum zadnje posodobitve: <strong>28. maj 2026</strong>.
+      </p>
+
+      <h3 style="margin-top: 25px;">10. Kontakt in pritožbe</h3>
+      <p style="margin-top: 10px; line-height: 1.6;">
+        Za vprašanja o zasebnosti se obrnite na avtorja:
+        <a href="mailto:bostjancebron76@gmail.com" onclick="return klikEmail(event, 'bostjancebron76@gmail.com')" style="color: #1565C0;">bostjancebron76@gmail.com</a>.
+        V Sloveniji je nadzorni organ za varstvo osebnih podatkov
+        <a href="https://www.ip-rs.si/" target="_blank" rel="noopener" style="color: #1565C0;">Informacijski pooblaščenec RS</a>,
+        kamor lahko podate pritožbo, če menite, da so vaše pravice kršene.
+      </p>
+
+      <div class="info-box" style="margin-top: 25px; background: #f8f9fa; color: #555;">
+        <strong>Tehnična opomba za radovedne:</strong> Aplikacija je ena sama HTML datoteka, ki teče
+        v celoti v vašem brskalniku. Gostovana je na GitHub Pages (Microsoft), ki streže samo statične
+        datoteke in ne obdeluje vaših vnešenih podatkov.
+      </div>
+    </section>
+
   </div>
 
   <!-- Modal za urejanje meritve -->
@@ -744,6 +856,8 @@
     <div>
       &copy; <span id="footerYear"></span> &middot; Aplikacijo izdelal <strong>Boštjan Čebron</strong> &middot;
       Za vprašanja in predloge: <a href="mailto:bostjancebron76@gmail.com" onclick="return klikEmail(event, 'bostjancebron76@gmail.com')" style="color: #c0392b;">bostjancebron76@gmail.com</a>
+      &middot;
+      <a href="#" onclick="prikaziZavihek('zasebnost'); return false;" style="color: #1565C0; text-decoration: underline;">Politika zasebnosti</a>
     </div>
     <div style="margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
       <span style="color: #555;">Če vam aplikacija pomaga, lahko podprete razvoj:</span>
@@ -859,15 +973,24 @@
   // ============= TABS =============
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      tab.classList.add('active');
-      const target = document.getElementById(tab.dataset.tab);
-      target.classList.add('active');
-      if (tab.dataset.tab === 'graf') setTimeout(osveziGraf, 100);
-      if (tab.dataset.tab === 'pregled') osveziTabelo();
+      prikaziZavihek(tab.dataset.tab);
     });
   });
+
+  // Funkcija za programsko preklapljanje med zavihki (uporablja jo tudi pasica o zasebnosti)
+  function prikaziZavihek(ime) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    const tabBtn = document.querySelector('.tab[data-tab="' + ime + '"]');
+    const target = document.getElementById(ime);
+    if (tabBtn) tabBtn.classList.add('active');
+    if (target) {
+      target.classList.add('active');
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    if (ime === 'graf') setTimeout(osveziGraf, 100);
+    if (ime === 'pregled') osveziTabelo();
+  }
 
   // ============= KATEGORIJE =============
   function dolociKategorijo(sis, dia) {
