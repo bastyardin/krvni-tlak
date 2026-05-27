@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dnevnik krvnega tlaka</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: #333;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    overflow: hidden;
+  }
+  header {
+    background: linear-gradient(135deg, #c0392b, #e74c3c);
+    color: #fff;
+    padding: 25px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  header h1 { font-size: 1.8em; font-weight: 600; }
+  header .subtitle { opacity: 0.9; font-size: 0.95em; margin-top: 4px; }
+  .tabs {
+    display: flex;
+    background: #f8f9fa;
+    border-bottom: 2px solid #e9ecef;
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 15px 25px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    font-size: 1em;
+    color: #555;
+    font-weight: 500;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tab:hover { background: #e9ecef; }
+  .tab.active {
+    color: #c0392b;
+    border-bottom-color: #c0392b;
+    background: #fff;
+  }
+  .content { padding: 30px; }
+  .section { display: none; }
+  .section.active { display: block; animation: fadeIn 0.3s; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Form */
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+  .form-group { display: flex; flex-direction: column; }
+  label { font-weight: 600; margin-bottom: 5px; color: #495057; font-size: 0.9em; }
+  input, select, textarea {
+    padding: 12px 14px;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    font-size: 1em;
+    transition: border-color 0.2s;
+    font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #c0392b;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+
+  /* Buttons */
+  .btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-right: 8px;
+    margin-bottom: 8px;
+  }
+  .btn-primary { background: #c0392b; color: #fff; }
+  .btn-primary:hover { background: #962d22; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(192,57,43,0.3); }
+  .btn-secondary { background: #6c757d; color: #fff; }
+  .btn-secondary:hover { background: #545b62; }
+  .btn-success { background: #27ae60; color: #fff; }
+  .btn-success:hover { background: #1e8449; }
+  .btn-danger { background: #e67e22; color: #fff; }
+  .btn-danger:hover { background: #b8651a; }
+  .btn-small { padding: 6px 12px; font-size: 0.85em; }
+
+  /* Status box */
+  .status-box {
+    padding: 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+    border-left: 6px solid;
+    background: #f8f9fa;
+  }
+  .status-box h3 { margin-bottom: 8px; }
+  .status-box.optimal { border-color: #27ae60; background: #d4edda; color: #155724; }
+  .status-box.normal { border-color: #2ecc71; background: #d1f2dd; color: #1e6e3c; }
+  .status-box.elevated { border-color: #f39c12; background: #fff3cd; color: #856404; }
+  .status-box.stage1 { border-color: #e67e22; background: #ffe5d0; color: #8a4413; }
+  .status-box.stage2 { border-color: #e74c3c; background: #f8d7da; color: #721c24; }
+  .status-box.crisis { border-color: #8b0000; background: #5a0000; color: #fff; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.85; } }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; margin-top: 20px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; }
+  th { background: #2c3e50; color: #fff; padding: 12px; text-align: left; font-weight: 600; position: sticky; top: 0; }
+  td { padding: 10px 12px; border-bottom: 1px solid #e9ecef; }
+  tr:hover { background: #f8f9fa; }
+  .cat-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
+  .cat-optimal { background: #27ae60; color: #fff; }
+  .cat-normal { background: #2ecc71; color: #fff; }
+  .cat-elevated { background: #f39c12; color: #fff; }
+  .cat-stage1 { background: #e67e22; color: #fff; }
+  .cat-stage2 { background: #e74c3c; color: #fff; }
+  .cat-crisis { background: #8b0000; color: #fff; }
+
+  /* Statistics cards */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+  }
+  .stat-card {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+  }
+  .stat-card .label { font-size: 0.85em; opacity: 0.9; margin-bottom: 5px; }
+  .stat-card .value { font-size: 1.8em; font-weight: 700; }
+  .stat-card .unit { font-size: 0.7em; opacity: 0.8; }
+
+  /* Info box */
+  .info-box {
+    background: #e7f3ff;
+    border-left: 4px solid #2196f3;
+    padding: 15px 20px;
+    border-radius: 6px;
+    margin: 15px 0;
+    font-size: 0.95em;
+    color: #0d47a1;
+  }
+  .warning-box {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 15px 20px;
+    border-radius: 6px;
+    margin: 15px 0;
+    font-size: 0.95em;
+    color: #856404;
+  }
+
+  /* Categories legend */
+  .legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+  }
+  .legend-item {
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 5px solid;
+    background: #f8f9fa;
+    font-size: 0.9em;
+  }
+  .legend-item strong { display: block; margin-bottom: 4px; }
+
+  /* Chart container */
+  .chart-wrap {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-top: 20px;
+    height: 400px;
+  }
+  .chart-controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+  }
+
+  /* BMI display */
+  .bmi-display {
+    background: #f8f9fa;
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-top: 15px;
+    font-size: 1em;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 1000;
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-box {
+    background: #fff;
+    border-radius: 14px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .modal-head {
+    background: linear-gradient(135deg, #c0392b, #e74c3c);
+    color: #fff;
+    padding: 18px 22px;
+    border-radius: 14px 14px 0 0;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-head h3 { font-size: 1.2em; }
+  .modal-close {
+    background: rgba(255,255,255,0.2);
+    border: none; color: #fff;
+    width: 32px; height: 32px; border-radius: 50%;
+    cursor: pointer; font-size: 1.2em;
+  }
+  .modal-close:hover { background: rgba(255,255,255,0.35); }
+  .modal-body { padding: 22px; }
+
+  /* Trendi */
+  .trend-box {
+    padding: 15px 20px;
+    border-radius: 10px;
+    margin: 15px 0;
+    border-left: 5px solid;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 0.95em;
+  }
+  .trend-up { background: #fff3cd; border-color: #e67e22; color: #8a4413; }
+  .trend-down { background: #d4edda; border-color: #27ae60; color: #155724; }
+  .trend-stable { background: #e7f3ff; border-color: #2196f3; color: #0d47a1; }
+  .trend-warning { background: #f8d7da; border-color: #e74c3c; color: #721c24; }
+  .trend-arrow { font-size: 1.8em; font-weight: bold; }
+  .btn-edit { background: #3498db; color: #fff; }
+  .btn-edit:hover { background: #2574a9; }
+  .cat-roka { background: #95a5a6; color: #fff; font-size: 0.8em; padding: 2px 8px; border-radius: 10px; }
+
+  @media (max-width: 768px) {
+    .content { padding: 15px; }
+    header { padding: 20px; }
+    header h1 { font-size: 1.4em; }
+    .tab { padding: 12px 16px; font-size: 0.9em; }
+  }
+  @media print {
+    body { background: #fff; }
+    .container { box-shadow: none; }
+    header { background: #c0392b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .tabs, .btn, .form-grid, .chart-controls { display: none !important; }
+    .section { display: block !important; page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h1>♥ Dnevnik krvnega tlaka</h1>
+      <div class="subtitle">Spremljanje krvnega tlaka in srčnega utripa</div>
+    </div>
+    <div style="text-align: right;">
+      <div id="currentDate" style="font-size: 0.9em; opacity: 0.9;"></div>
+      <div style="font-size: 0.85em; opacity: 0.9; margin-top: 4px;">
+        Avtor: <strong>Boštjan Čebron</strong> &middot;
+        <a href="mailto:bostjancebron76@gmail.com" onclick="return klikEmail(event, 'bostjancebron76@gmail.com')" style="color: #fff; text-decoration: underline;">bostjancebron76@gmail.com</a>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="vnos">Vnos meritve</button>
+    <button class="tab" data-tab="pregled">Pregled in tabela</button>
+    <button class="tab" data-tab="graf">Graf</button>
+    <button class="tab" data-tab="profil">Moj profil</button>
+    <button class="tab" data-tab="opomniki">Opomniki</button>
+    <button class="tab" data-tab="izvoz">Izvoz podatkov</button>
+    <button class="tab" data-tab="info">Informacije</button>
+  </nav>
+
+  <div class="content">
+
+    <!-- VNOS -->
+    <section class="section active" id="vnos">
+      <h2 style="margin-bottom: 15px;">Nova meritev</h2>
+      <div class="info-box">
+        Najboljši čas za merjenje: zjutraj (pred zdravili in zajtrkom) in zvečer. Pred meritvijo 5 minut mirno sedite.
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="datum">Datum</label>
+          <input type="date" id="datum">
+        </div>
+        <div class="form-group">
+          <label for="cas">Čas</label>
+          <input type="time" id="cas">
+        </div>
+        <div class="form-group">
+          <label for="obdobje">Obdobje</label>
+          <select id="obdobje">
+            <option value="jutro">Jutro</option>
+            <option value="vecer">Večer</option>
+            <option value="popoldne">Popoldne</option>
+            <option value="drugo">Drugo</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="sistolicni">Sistolični (zgornji) - mm Hg</label>
+          <input type="number" id="sistolicni" min="50" max="260" placeholder="npr. 120">
+        </div>
+        <div class="form-group">
+          <label for="diastolicni">Diastolični (spodnji) - mm Hg</label>
+          <input type="number" id="diastolicni" min="30" max="180" placeholder="npr. 80">
+        </div>
+        <div class="form-group">
+          <label for="utrip">Srčni utrip - št./min</label>
+          <input type="number" id="utrip" min="30" max="220" placeholder="npr. 70">
+        </div>
+        <div class="form-group">
+          <label for="roka">Roka</label>
+          <select id="roka">
+            <option value="leva">Leva</option>
+            <option value="desna">Desna</option>
+            <option value="">Ni navedeno</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top: 15px;">
+        <label for="opomba">Opomba (neobvezno)</label>
+        <textarea id="opomba" placeholder="npr. po vadbi, stres, slabo počutje, vzeto zdravilo..."></textarea>
+      </div>
+
+      <div style="margin-top: 20px;">
+        <button class="btn btn-primary" onclick="dodajMeritev()">Shrani meritev</button>
+        <button class="btn btn-secondary" onclick="ponastaviObrazec()">Ponastavi</button>
+      </div>
+
+      <div id="zadnjaOcena"></div>
+    </section>
+
+    <!-- PREGLED -->
+    <section class="section" id="pregled">
+      <h2 style="margin-bottom: 15px;">Pregled meritev</h2>
+
+      <div class="stats-grid" id="statsGrid"></div>
+
+      <div class="chart-controls">
+        <label>Prikaži:
+          <select id="filter" onchange="osveziTabelo()">
+            <option value="vse">Vse meritve</option>
+            <option value="7">Zadnjih 7 dni</option>
+            <option value="30">Zadnjih 30 dni</option>
+            <option value="90">Zadnjih 90 dni</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="table-wrap">
+        <table id="tabelaMeritev">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Čas</th>
+              <th>Obdobje</th>
+              <th>Sistol.</th>
+              <th>Diastol.</th>
+              <th>Utrip</th>
+              <th>Roka</th>
+              <th>Kategorija</th>
+              <th>Opomba</th>
+              <th>Dejanja</th>
+            </tr>
+          </thead>
+          <tbody id="tabelaBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- GRAF -->
+    <section class="section" id="graf">
+      <h2 style="margin-bottom: 15px;">Grafični prikaz</h2>
+      <div class="chart-controls">
+        <label>Obdobje:
+          <select id="grafFilter" onchange="osveziGraf()">
+            <option value="7">Zadnjih 7 dni</option>
+            <option value="14">Zadnjih 14 dni</option>
+            <option value="30" selected>Zadnjih 30 dni</option>
+            <option value="90">Zadnjih 90 dni</option>
+            <option value="vse">Vse</option>
+          </select>
+        </label>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="grafKrvniTlak"></canvas>
+      </div>
+      <div class="chart-wrap" style="margin-top: 20px;">
+        <canvas id="grafUtrip"></canvas>
+      </div>
+    </section>
+
+    <!-- PROFIL -->
+    <section class="section" id="profil">
+      <h2 style="margin-bottom: 15px;">Moj profil</h2>
+      <div class="info-box">Te podatke uporabimo za izračun ITM (indeks telesne mase) in bolj prilagojen prikaz.</div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="ime">Ime in priimek</label>
+          <input type="text" id="ime" placeholder="Vaše ime">
+        </div>
+        <div class="form-group">
+          <label for="starost">Starost</label>
+          <input type="number" id="starost" min="0" max="120" placeholder="leta">
+        </div>
+        <div class="form-group">
+          <label for="spol">Spol</label>
+          <select id="spol">
+            <option value="">Izberi</option>
+            <option value="moski">Moški</option>
+            <option value="zenska">Ženska</option>
+            <option value="drugo">Drugo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="visina">Višina (cm)</label>
+          <input type="number" id="visina" min="50" max="250" placeholder="npr. 175">
+        </div>
+        <div class="form-group">
+          <label for="teza">Teža (kg)</label>
+          <input type="number" id="teza" min="20" max="300" step="0.1" placeholder="npr. 80">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top: 15px;">
+        <label for="zdravila">Zdravila, ki jih jemljete</label>
+        <textarea id="zdravila" placeholder="Naštejte zdravila in odmerke (npr. Lisinopril 10mg zjutraj)"></textarea>
+      </div>
+
+      <div class="form-group" style="margin-top: 15px;">
+        <label for="opombe">Druge opombe (zdravstveno stanje, alergije...)</label>
+        <textarea id="opombe"></textarea>
+      </div>
+
+      <div style="margin-top: 20px;">
+        <button class="btn btn-primary" onclick="shraniProfil()">Shrani profil</button>
+      </div>
+
+      <div id="bmiDisplay" class="bmi-display" style="display:none;"></div>
+    </section>
+
+    <!-- OPOMNIKI -->
+    <section class="section" id="opomniki">
+      <h2 style="margin-bottom: 15px;">Opomniki za merjenje</h2>
+      <div class="info-box">
+        Aplikacija ustvari datoteko v formatu <strong>.ics</strong>, ki jo lahko uvozite v Apple Calendar (iPhone, iPad, Mac),
+        Google Coledar ali Outlook. V koledarju boste imeli za vsak dan dva dogodka z zvočnim opomnikom -
+        zjutraj in zvečer. Opomniki delujejo tudi, ko aplikacija ni odprta.
+      </div>
+
+      <h3 style="margin-top: 15px;">Nastavitve opomnikov</h3>
+
+      <div class="form-grid" style="margin-top: 15px;">
+        <div class="form-group">
+          <label for="opomnikJutroCas">Jutranji opomnik (ura)</label>
+          <input type="text" id="opomnikJutroCas" value="07:00" placeholder="HH:MM" maxlength="5" pattern="[0-9]{2}:[0-9]{2}" style="letter-spacing:2px;">
+        </div>
+        <div class="form-group">
+          <label for="opomnikVecerCas">Večerni opomnik (ura)</label>
+          <input type="text" id="opomnikVecerCas" value="20:00" placeholder="HH:MM" maxlength="5" pattern="[0-9]{2}:[0-9]{2}" style="letter-spacing:2px;">
+        </div>
+        <div class="form-group">
+          <label for="opomnikZacetek">Datum začetka</label>
+          <input type="date" id="opomnikZacetek">
+        </div>
+        <div class="form-group">
+          <label for="opomnikDni">Število dni</label>
+          <input type="number" id="opomnikDni" value="30" min="1" max="365">
+        </div>
+      </div>
+
+      <div class="form-grid" style="margin-top: 15px;">
+        <div class="form-group">
+          <label for="opomnikAlarm">Predčasni zvočni alarm</label>
+          <select id="opomnikAlarm">
+            <option value="0">Točno ob uri</option>
+            <option value="5" selected>5 minut prej</option>
+            <option value="10">10 minut prej</option>
+            <option value="15">15 minut prej</option>
+            <option value="30">30 minut prej</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="opomnikJutroVklop">Jutranji opomnik</label>
+          <select id="opomnikJutroVklop">
+            <option value="1" selected>Vklopljen</option>
+            <option value="0">Izklopljen</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="opomnikVecerVklop">Večerni opomnik</label>
+          <select id="opomnikVecerVklop">
+            <option value="1" selected>Vklopljen</option>
+            <option value="0">Izklopljen</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-top: 25px;">
+        <button class="btn btn-primary" onclick="prenesiOpomnike()">Prenesi koledarsko datoteko (.ics)</button>
+        <button class="btn btn-secondary" onclick="shraniNastavitveOpomnikov()">Shrani nastavitve</button>
+      </div>
+
+      <div id="opomnikiInfo"></div>
+
+      <h3 style="margin-top: 35px;">Navodila za uvoz na iPhone / iPad / Mac</h3>
+      <ol style="margin-left: 25px; margin-top: 10px; line-height: 1.8;">
+        <li>Kliknite na "Prenesi koledarsko datoteko (.ics)" - prenese se datoteka <em>opomniki-tlak.ics</em></li>
+        <li><strong>Na Macu:</strong> Dvokliknite datoteko - Apple Calendar vas vpraša, v kateri koledar naj uvozi dogodke.</li>
+        <li><strong>Na iPhone/iPad:</strong>
+          <ul style="margin-left: 25px; margin-top: 5px;">
+            <li>Datoteko si pošljite po e-pošti (gmail) ali shranite v iCloud Drive</li>
+            <li>V Mailu/iCloud Drive odprite datoteko in tapnite "Dodaj vse" (Add All)</li>
+            <li>Izberite koledar in potrdite</li>
+          </ul>
+        </li>
+        <li>Vsak dogodek ima vgrajen alarm - iPhone bo zazvonil ob izbrani uri.</li>
+      </ol>
+
+      <h3 style="margin-top: 25px;">Navodila za Google Coledar</h3>
+      <ol style="margin-left: 25px; margin-top: 10px; line-height: 1.8;">
+        <li>Odprite <a href="https://calendar.google.com" target="_blank">calendar.google.com</a></li>
+        <li>Kliknite zobnik (Nastavitve) → "Uvoz in izvoz" → "Uvozi"</li>
+        <li>Izberite datoteko <em>opomniki-tlak.ics</em> in koledar, v katerega želite uvoziti</li>
+        <li>Kliknite "Uvozi"</li>
+      </ol>
+
+      <div class="warning-box" style="margin-top: 25px;">
+        <strong>Nasvet:</strong> Če uvozite po 30 dneh, lahko ponovno generirate datoteko za naslednje obdobje.
+        Dogodki se ne podvojijo, ker imajo unikatne identifikatorje glede na čas generiranja.
+      </div>
+    </section>
+
+    <!-- IZVOZ -->
+    <section class="section" id="izvoz">
+      <h2 style="margin-bottom: 15px;">Izvoz podatkov</h2>
+      <div class="info-box">
+        CSV datoteko lahko odprete v Excelu. PDF poročilo je primerno za tiskanje in zdravnika.
+      </div>
+
+      <h3 style="margin-top: 20px;">CSV (Excel)</h3>
+      <p style="margin: 10px 0;">Izvoz vseh meritev v obliki tabele za Excel.</p>
+      <button class="btn btn-success" onclick="izvoziCSV()">Prenesi CSV datoteko</button>
+
+      <h3 style="margin-top: 30px;">PDF poročilo</h3>
+      <p style="margin: 10px 0;">Tiskanju prijazno poročilo z vsemi meritvami in povprečji.</p>
+      <button class="btn btn-success" onclick="natisniPDF()">Pripravi za tiskanje / PDF</button>
+
+      <h3 style="margin-top: 30px;">Varnostna kopija (JSON)</h3>
+      <p style="margin: 10px 0;">Shranite varnostno kopijo vseh podatkov ali jih obnovite.</p>
+      <button class="btn btn-secondary" onclick="izvoziJSON()">Prenesi varnostno kopijo</button>
+      <label class="btn btn-secondary" style="display: inline-block;">
+        Obnovi iz datoteke
+        <input type="file" accept=".json" onchange="uvoziJSON(event)" style="display: none;">
+      </label>
+
+      <h3 style="margin-top: 30px; color: #c0392b;">Nevarno območje</h3>
+      <p style="margin: 10px 0;">Izbriši vse meritve. To dejanje ni mogoče razveljaviti!</p>
+      <button class="btn btn-danger" onclick="pobrisiVse()">Izbriši vse podatke</button>
+    </section>
+
+    <!-- INFO -->
+    <section class="section" id="info">
+      <h2 style="margin-bottom: 15px;">Informacije o kategorijah</h2>
+      <div class="info-box">
+        Aplikacija uporablja mednarodne smernice (ESH/AHA) za razvrstitev krvnega tlaka.
+        Kategorija je določena na podlagi <strong>višje vrednosti</strong> med sistoličnim in diastoličnim tlakom.
+      </div>
+
+      <div class="legend">
+        <div class="legend-item" style="border-color: #27ae60;">
+          <strong style="color: #27ae60;">Optimalno</strong>
+          Sistolični &lt; 120 in diastolični &lt; 80
+        </div>
+        <div class="legend-item" style="border-color: #2ecc71;">
+          <strong style="color: #1e6e3c;">Normalno</strong>
+          120-129 / 80-84
+        </div>
+        <div class="legend-item" style="border-color: #f39c12;">
+          <strong style="color: #856404;">Visoko normalno / Povišano</strong>
+          130-139 / 85-89
+        </div>
+        <div class="legend-item" style="border-color: #e67e22;">
+          <strong style="color: #8a4413;">Hipertenzija 1. stopnje</strong>
+          140-159 / 90-99
+        </div>
+        <div class="legend-item" style="border-color: #e74c3c;">
+          <strong style="color: #721c24;">Hipertenzija 2. stopnje</strong>
+          160-179 / 100-109
+        </div>
+        <div class="legend-item" style="border-color: #8b0000;">
+          <strong style="color: #8b0000;">Hipertenzivna kriza</strong>
+          ≥ 180 / ≥ 120 - <strong>NUJNO POIŠČI POMOČ!</strong>
+        </div>
+      </div>
+
+      <div class="info-box" style="margin-top: 20px;">
+        <strong>Zakaj se rezultat lahko razlikuje od vašega merilnika?</strong><br>
+        Nekateri merilniki (npr. Beurer s 6-barvno lestvico: 3 zelene, 1 rumena, 3 rdeče) uporabljajo
+        starejšo klasifikacijo WHO/ESH. Pri njej območje 130&ndash;139 / 85&ndash;89 mm Hg še velja
+        za &bdquo;zeleno&ldquo; (visoko normalno). Ta aplikacija uporablja novejše smernice ESH/AHA,
+        ki isto območje uvrščajo med <strong>&bdquo;Povišano&ldquo;</strong>, ker se tveganje že tu
+        nekoliko poveča. Zato lahko program prikaže &bdquo;Povišano&ldquo;, čeprav merilnik sveti zeleno
+        &ndash; oboje je pravilno, le lestvici sta različni. Za diagnozo je vedno merodajen zdravnik.
+      </div>
+
+      <div class="warning-box" style="margin-top: 25px;">
+        <strong>POMEMBNO:</strong> Ta aplikacija je namenjena le beleženju in informativnemu spremljanju.
+        NI nadomestilo za zdravniški nasvet. Ob nenavadnih ali visokih vrednostih se posvetujte z zdravnikom.
+        V primeru vrednosti nad 180/120 mm Hg z bolečinami v prsih, težkim dihanjem ali drugimi simptomi takoj pokličite 112.
+      </div>
+
+      <h3 style="margin-top: 25px;">Nasveti za pravilno merjenje</h3>
+      <ul style="margin-left: 25px; margin-top: 10px; line-height: 1.8;">
+        <li>Merite ob istem času (zjutraj in zvečer)</li>
+        <li>5 minut pred meritvijo mirno sedite</li>
+        <li>Ne pijte kave, ne kadite in ne telovadite 30 minut pred meritvijo</li>
+        <li>Manšeta naj bo na višini srca</li>
+        <li>Ne govorite med merjenjem</li>
+        <li>Naredite 2 meritvi z minuto razmika in zabeležite povprečje</li>
+        <li>Obe nogi naj bosta na tleh, hrbet podprt</li>
+      </ul>
+
+      <h3 style="margin-top: 25px;">O srčnem utripu</h3>
+      <p style="margin-top: 10px; line-height: 1.6;">
+        Normalen srčni utrip v mirovanju za odraslega je 60-100 udarcev na minuto.
+        Vrednosti pod 60 (bradikardija) ali nad 100 (tahikardija) v mirovanju brez razloga
+        so razlog za posvet z zdravnikom. Pri športnikih je nižji utrip normalen.
+      </p>
+    </section>
+
+  </div>
+
+  <!-- Modal za urejanje meritve -->
+  <div class="modal-overlay" id="urediModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>Uredi meritev</h3>
+        <button class="modal-close" onclick="zapriUrediModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="editDatum">Datum</label>
+            <input type="date" id="editDatum">
+          </div>
+          <div class="form-group">
+            <label for="editCas">Čas</label>
+            <input type="time" id="editCas">
+          </div>
+          <div class="form-group">
+            <label for="editObdobje">Obdobje</label>
+            <select id="editObdobje">
+              <option value="jutro">Jutro</option>
+              <option value="vecer">Večer</option>
+              <option value="popoldne">Popoldne</option>
+              <option value="drugo">Drugo</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid" style="margin-top: 12px;">
+          <div class="form-group">
+            <label for="editSistolicni">Sistolični (mm Hg)</label>
+            <input type="number" id="editSistolicni" min="50" max="260">
+          </div>
+          <div class="form-group">
+            <label for="editDiastolicni">Diastolični (mm Hg)</label>
+            <input type="number" id="editDiastolicni" min="30" max="180">
+          </div>
+          <div class="form-group">
+            <label for="editUtrip">Utrip (/min)</label>
+            <input type="number" id="editUtrip" min="30" max="220">
+          </div>
+          <div class="form-group">
+            <label for="editRoka">Roka</label>
+            <select id="editRoka">
+              <option value="leva">Leva</option>
+              <option value="desna">Desna</option>
+              <option value="">Ni navedeno</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top: 12px;">
+          <label for="editOpomba">Opomba</label>
+          <textarea id="editOpomba"></textarea>
+        </div>
+        <div style="margin-top: 20px; text-align: right;">
+          <button class="btn btn-secondary" onclick="zapriUrediModal()">Prekliči</button>
+          <button class="btn btn-primary" onclick="shraniUrejanje()">Shrani spremembe</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer style="background: #f8f9fa; border-top: 1px solid #e9ecef; padding: 18px 30px; text-align: center; font-size: 0.88em; color: #6c757d;">
+    <div>
+      &copy; <span id="footerYear"></span> &middot; Aplikacijo izdelal <strong>Boštjan Čebron</strong> &middot;
+      Za vprašanja in predloge: <a href="mailto:bostjancebron76@gmail.com" onclick="return klikEmail(event, 'bostjancebron76@gmail.com')" style="color: #c0392b;">bostjancebron76@gmail.com</a>
+    </div>
+    <div style="margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
+      <span style="color: #555;">Če vam aplikacija pomaga, lahko podprete razvoj:</span>
+      <a href="https://www.paypal.com/donate/?hosted_button_id=3N3W9FDJM8E4W" target="_blank" rel="noopener"
+         style="display: inline-flex; align-items: center; gap: 8px; background: #FFC439; color: #003087; padding: 7px 16px; border-radius: 20px; font-weight: bold; text-decoration: none; box-shadow: 0 2px 6px rgba(0,0,0,0.15); transition: all 0.2s; font-size: 0.9em;"
+         onmouseover="this.style.background='#ffb800'; this.style.transform='translateY(-1px)'"
+         onmouseout="this.style.background='#FFC439'; this.style.transform='translateY(0)'">
+        <span style="font-style: italic; font-family: Arial, sans-serif;"><span style="color: #003087;">Pay</span><span style="color: #009cde;">Pal</span></span>
+        <span style="color: #003087;">· Donate</span>
+      </a>
+      <a href="https://www.paypal.com/donate/?hosted_button_id=3N3W9FDJM8E4W" target="_blank" rel="noopener" title="Skenirajte QR kodo za donacijo preko PayPal" style="display: inline-block; background: #fff; padding: 3px; border-radius: 5px; box-shadow: 0 1px 4px rgba(0,0,0,0.12); line-height: 0; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+        <img src="data:image/png;base64,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" alt="PayPal Donate QR" width="50" height="50" style="display: block;">
+      </a>
+    </div>
+  </footer>
+</div>
+
+<script>
+  // ============= EMAIL CLICK HANDLER (cross-platform) =============
+  // Na Macu mailto: skoraj vedno odpre Mail.
+  // Na Windowsih pogosto ne, ker uporabnik nima nastavljenega privzetega
+  // e-poštnega programa (uporablja Gmail/Outlook v brskalniku).
+  // Zato: poskusi mailto, in če okno ostane (brskalnik ne preusmeri),
+  // kopiraj naslov v odložišče in pokaži obvestilo.
+  function klikEmail(event, naslov) {
+    // Pripravi obvestilo
+    function pokaziObvestilo(besedilo, barva) {
+      var obv = document.createElement('div');
+      obv.textContent = besedilo;
+      obv.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);' +
+        'background:' + (barva || '#27ae60') + ';color:#fff;padding:14px 22px;' +
+        'border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.25);' +
+        'font-family:Arial,sans-serif;font-size:14px;z-index:99999;' +
+        'transition:opacity 0.4s;opacity:0;';
+      document.body.appendChild(obv);
+      setTimeout(function(){ obv.style.opacity = '1'; }, 10);
+      setTimeout(function(){
+        obv.style.opacity = '0';
+        setTimeout(function(){ obv.remove(); }, 400);
+      }, 3500);
+    }
+
+    // Kopiraj v odložišče (z rezervo za starejše brskalnike)
+    function kopiraj(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+      }
+      // Rezerva
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch(e) {}
+      ta.remove();
+      return Promise.resolve();
+    }
+
+    // Zaznaj, ali je dokument še viden po kliku (znak, da mailto ni odprl ničesar).
+    // Če se mail program odpre, brskalnik izgubi fokus -> document.hidden = true.
+    var zacetekCasa = Date.now();
+    var seJeOdprlo = false;
+
+    function preveriOdpiranje() {
+      if (document.hidden || !document.hasFocus()) {
+        seJeOdprlo = true;
+      }
+    }
+
+    window.addEventListener('blur', preveriOdpiranje, { once: true });
+
+    // Pustimo mailto, da poskusi delovati (ne preprečimo dogodka)
+    setTimeout(function() {
+      window.removeEventListener('blur', preveriOdpiranje);
+      // Če v 600ms ni izgubljenega fokusa, predpostavimo, da mailto ni deloval
+      if (!seJeOdprlo && (Date.now() - zacetekCasa) < 1500) {
+        kopiraj(naslov).then(function() {
+          pokaziObvestilo('Email naslov kopiran v odložišče: ' + naslov, '#27ae60');
+        }).catch(function() {
+          pokaziObvestilo('Naslov: ' + naslov, '#e67e22');
+        });
+      }
+    }, 600);
+
+    return true; // dovolimo privzeto mailto vedenje
+  }
+
+  // ============= DATA STORAGE =============
+  const STORAGE_KEY = 'krvniTlakDnevnik_v1';
+  const PROFILE_KEY = 'krvniTlakProfil_v1';
+
+  function nalozi() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch(e) { return []; }
+  }
+  function shrani(podatki) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(podatki));
+  }
+  function nalozyProfil() {
+    try { return JSON.parse(localStorage.getItem(PROFILE_KEY)) || {}; }
+    catch(e) { return {}; }
+  }
+  function shraniProfilStorage(p) {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+  }
+
+  let meritve = nalozi();
+  let profil = nalozyProfil();
+  let grafKT = null;
+  let grafUT = null;
+
+  // ============= TABS =============
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      tab.classList.add('active');
+      const target = document.getElementById(tab.dataset.tab);
+      target.classList.add('active');
+      if (tab.dataset.tab === 'graf') setTimeout(osveziGraf, 100);
+      if (tab.dataset.tab === 'pregled') osveziTabelo();
+    });
+  });
+
+  // ============= KATEGORIJE =============
+  function dolociKategorijo(sis, dia) {
+    if (sis >= 180 || dia >= 120) return { ime: 'Hipertenzivna kriza', razred: 'crisis', barva: '#8b0000' };
+    if (sis >= 160 || dia >= 100) return { ime: 'Hipertenzija 2. st.', razred: 'stage2', barva: '#e74c3c' };
+    if (sis >= 140 || dia >= 90)  return { ime: 'Hipertenzija 1. st.', razred: 'stage1', barva: '#e67e22' };
+    if (sis >= 130 || dia >= 85)  return { ime: 'Povišano', razred: 'elevated', barva: '#f39c12' };
+    if (sis >= 120 || dia >= 80)  return { ime: 'Normalno', razred: 'normal', barva: '#2ecc71' };
+    return { ime: 'Optimalno', razred: 'optimal', barva: '#27ae60' };
+  }
+
+  function oceniUtrip(utrip) {
+    if (utrip < 50) return ' Zelo nizek utrip - posvet z zdravnikom.';
+    if (utrip < 60) return ' Nizek utrip (bradikardija).';
+    if (utrip > 100) return ' Povišan utrip (tahikardija).';
+    return '';
+  }
+
+  // ============= VNOS =============
+  function inicializirajObrazec() {
+    const now = new Date();
+    document.getElementById('datum').value = now.toISOString().split('T')[0];
+    document.getElementById('cas').value = now.toTimeString().slice(0,5);
+    const hour = now.getHours();
+    document.getElementById('obdobje').value = hour < 12 ? 'jutro' : (hour < 17 ? 'popoldne' : 'vecer');
+  }
+
+  function dodajMeritev() {
+    const datum = document.getElementById('datum').value;
+    const cas = document.getElementById('cas').value;
+    const obdobje = document.getElementById('obdobje').value;
+    const sis = parseInt(document.getElementById('sistolicni').value);
+    const dia = parseInt(document.getElementById('diastolicni').value);
+    const utrip = parseInt(document.getElementById('utrip').value);
+    const roka = document.getElementById('roka').value;
+    const opomba = document.getElementById('opomba').value.trim();
+
+    if (!datum || !cas || isNaN(sis) || isNaN(dia) || isNaN(utrip)) {
+      alert('Prosim, izpolnite vsa obvezna polja: datum, čas, sistolični, diastolični tlak in utrip.');
+      return;
+    }
+    if (sis <= dia) {
+      if (!confirm('Sistolični tlak je nižji ali enak diastoličnemu. Ali je vnos pravilen?')) return;
+    }
+
+    const meritev = {
+      id: Date.now(),
+      datum, cas, obdobje,
+      sistolicni: sis,
+      diastolicni: dia,
+      utrip: utrip,
+      roka: roka,
+      opomba: opomba
+    };
+
+    meritve.push(meritev);
+    meritve.sort((a,b) => (a.datum + a.cas).localeCompare(b.datum + b.cas));
+    shrani(meritve);
+
+    const kat = dolociKategorijo(sis, dia);
+    const utripOcena = oceniUtrip(utrip);
+
+    let sporocilo = `<div class="status-box ${kat.razred}">
+      <h3>Meritev shranjena - Kategorija: ${kat.ime}</h3>
+      <div>Krvni tlak: <strong>${sis}/${dia} mm Hg</strong> | Utrip: <strong>${utrip}/min</strong>${utripOcena}</div>`;
+
+    if (kat.razred === 'crisis') {
+      sporocilo += `<div style="margin-top: 10px; font-weight: bold; font-size: 1.1em;">
+        OPOZORILO! Vrednosti so v območju hipertenzivne krize. Če imate bolečine v prsih, težko dihanje, glavobol ali zmedenost, TAKOJ pokličite 112!
+      </div>`;
+    } else if (kat.razred === 'stage2') {
+      sporocilo += `<div style="margin-top: 10px; font-weight: bold;">
+        OPOZORILO: tlak je močno povišan (hipertenzija 2. stopnje). Čim prej se posvetujte z zdravnikom.
+      </div>`;
+    } else if (kat.razred === 'stage1') {
+      sporocilo += `<div style="margin-top: 10px; font-weight: bold;">
+        OPOZORILO: tlak je povišan (hipertenzija 1. stopnje). Priporočeno je redno spremljanje in posvet z zdravnikom.
+      </div>`;
+    } else if (kat.razred === 'elevated') {
+      sporocilo += `<div style="margin-top: 10px;">
+        Tlak je rahlo povišan (visoko normalno). Priporočamo nadaljnje spremljanje in zdrav življenjski slog. Posamezna meritev še ni razlog za skrb.
+      </div>`;
+    }
+    sporocilo += `</div>`;
+
+    document.getElementById('zadnjaOcena').innerHTML = sporocilo;
+    ponastaviObrazec();
+  }
+
+  function ponastaviObrazec() {
+    document.getElementById('sistolicni').value = '';
+    document.getElementById('diastolicni').value = '';
+    document.getElementById('utrip').value = '';
+    document.getElementById('opomba').value = '';
+    inicializirajObrazec();
+  }
+
+  // ============= TABELA =============
+  function filtriranjeMeritev() {
+    const filter = document.getElementById('filter')?.value || 'vse';
+    if (filter === 'vse') return [...meritve];
+    const dni = parseInt(filter);
+    const meja = new Date();
+    meja.setDate(meja.getDate() - dni);
+    return meritve.filter(m => new Date(m.datum) >= meja);
+  }
+
+  function osveziTabelo() {
+    const tbody = document.getElementById('tabelaBody');
+    const filtrirane = filtriranjeMeritev().slice().reverse();
+    tbody.innerHTML = '';
+
+    if (filtrirane.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding: 30px; color: #999;">Ni meritev za to obdobje. Dodajte prvo meritev v zavihku "Vnos meritve".</td></tr>';
+    } else {
+      filtrirane.forEach(m => {
+        const kat = dolociKategorijo(m.sistolicni, m.diastolicni);
+        const rokaPrikaz = m.roka === 'leva' ? '<span class="cat-roka">L</span>' :
+                          m.roka === 'desna' ? '<span class="cat-roka">D</span>' : '-';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${formatDate(m.datum)}</td>
+          <td>${m.cas}</td>
+          <td>${m.obdobje}</td>
+          <td><strong>${m.sistolicni}</strong></td>
+          <td><strong>${m.diastolicni}</strong></td>
+          <td>${m.utrip}</td>
+          <td>${rokaPrikaz}</td>
+          <td><span class="cat-badge cat-${kat.razred}">${kat.ime}</span></td>
+          <td>${m.opomba || '-'}</td>
+          <td>
+            <button class="btn btn-edit btn-small" onclick="odpriUrediModal(${m.id})">Uredi</button>
+            <button class="btn btn-danger btn-small" onclick="izbrisi(${m.id})">Izbriši</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+    osveziStatistiko();
+    osveziTrend();
+  }
+
+  function izbrisi(id) {
+    if (!confirm('Ali res želite izbrisati to meritev?')) return;
+    meritve = meritve.filter(m => m.id !== id);
+    shrani(meritve);
+    osveziTabelo();
+  }
+
+  function osveziStatistiko() {
+    const filtrirane = filtriranjeMeritev();
+    const grid = document.getElementById('statsGrid');
+
+    if (filtrirane.length === 0) {
+      grid.innerHTML = '<div class="stat-card"><div class="label">Ni podatkov</div><div class="value">-</div></div>';
+      return;
+    }
+
+    const povprecje = (arr, key) => Math.round(arr.reduce((s, x) => s + x[key], 0) / arr.length);
+    const sisAvg = povprecje(filtrirane, 'sistolicni');
+    const diaAvg = povprecje(filtrirane, 'diastolicni');
+    const utripAvg = povprecje(filtrirane, 'utrip');
+    const sisMax = Math.max(...filtrirane.map(m => m.sistolicni));
+    const sisMin = Math.min(...filtrirane.map(m => m.sistolicni));
+    const katPovprecje = dolociKategorijo(sisAvg, diaAvg);
+
+    grid.innerHTML = `
+      <div class="stat-card">
+        <div class="label">Število meritev</div>
+        <div class="value">${filtrirane.length}</div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, ${katPovprecje.barva}, ${katPovprecje.barva}dd);">
+        <div class="label">Povprečni tlak</div>
+        <div class="value">${sisAvg}/${diaAvg}<span class="unit"> mm Hg</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Povprečni utrip</div>
+        <div class="value">${utripAvg}<span class="unit"> /min</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Najvišji sistolični</div>
+        <div class="value">${sisMax}<span class="unit"> mm Hg</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Najnižji sistolični</div>
+        <div class="value">${sisMin}<span class="unit"> mm Hg</span></div>
+      </div>
+    `;
+  }
+
+  // ============= GRAF =============
+  function osveziGraf() {
+    const filter = document.getElementById('grafFilter').value;
+    let podatki = [...meritve];
+    if (filter !== 'vse') {
+      const dni = parseInt(filter);
+      const meja = new Date();
+      meja.setDate(meja.getDate() - dni);
+      podatki = podatki.filter(m => new Date(m.datum) >= meja);
+    }
+    podatki.sort((a,b) => (a.datum + a.cas).localeCompare(b.datum + b.cas));
+
+    const labels = podatki.map(m => `${formatDate(m.datum)} ${m.cas}`);
+    const sisData = podatki.map(m => m.sistolicni);
+    const diaData = podatki.map(m => m.diastolicni);
+    const utripData = podatki.map(m => m.utrip);
+
+    if (grafKT) grafKT.destroy();
+    if (grafUT) grafUT.destroy();
+
+    const ctx1 = document.getElementById('grafKrvniTlak').getContext('2d');
+    grafKT = new Chart(ctx1, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Sistolični (zgornji)',
+            data: sisData,
+            borderColor: '#c0392b',
+            backgroundColor: 'rgba(192,57,43,0.1)',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true
+          },
+          {
+            label: 'Diastolični (spodnji)',
+            data: diaData,
+            borderColor: '#2980b9',
+            backgroundColor: 'rgba(41,128,185,0.1)',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          title: { display: true, text: 'Krvni tlak (mm Hg)', font: { size: 16 } },
+          legend: { position: 'top' }
+        },
+        scales: {
+          y: { beginAtZero: false, suggestedMin: 50, suggestedMax: 200 }
+        }
+      }
+    });
+
+    const ctx2 = document.getElementById('grafUtrip').getContext('2d');
+    grafUT = new Chart(ctx2, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Srčni utrip',
+          data: utripData,
+          borderColor: '#8e44ad',
+          backgroundColor: 'rgba(142,68,173,0.15)',
+          borderWidth: 2,
+          tension: 0.3,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          title: { display: true, text: 'Srčni utrip (št./min)', font: { size: 16 } },
+          legend: { position: 'top' }
+        },
+        scales: {
+          y: { beginAtZero: false, suggestedMin: 40, suggestedMax: 120 }
+        }
+      }
+    });
+  }
+
+  // ============= PROFIL =============
+  function shraniProfil() {
+    profil = {
+      ime: document.getElementById('ime').value,
+      starost: document.getElementById('starost').value,
+      spol: document.getElementById('spol').value,
+      visina: document.getElementById('visina').value,
+      teza: document.getElementById('teza').value,
+      zdravila: document.getElementById('zdravila').value,
+      opombe: document.getElementById('opombe').value
+    };
+    shraniProfilStorage(profil);
+    prikaziITM();
+    alert('Profil shranjen!');
+  }
+
+  function nastaviProfil() {
+    if (!profil) return;
+    document.getElementById('ime').value = profil.ime || '';
+    document.getElementById('starost').value = profil.starost || '';
+    document.getElementById('spol').value = profil.spol || '';
+    document.getElementById('visina').value = profil.visina || '';
+    document.getElementById('teza').value = profil.teza || '';
+    document.getElementById('zdravila').value = profil.zdravila || '';
+    document.getElementById('opombe').value = profil.opombe || '';
+    prikaziITM();
+  }
+
+  function prikaziITM() {
+    const v = parseFloat(profil.visina);
+    const t = parseFloat(profil.teza);
+    const box = document.getElementById('bmiDisplay');
+    if (!v || !t) { box.style.display = 'none'; return; }
+    const vm = v / 100;
+    const itm = (t / (vm * vm)).toFixed(1);
+    let kategorija = '', barva = '#666';
+    if (itm < 18.5) { kategorija = 'Podhranjenost'; barva = '#3498db'; }
+    else if (itm < 25) { kategorija = 'Normalna teža'; barva = '#27ae60'; }
+    else if (itm < 30) { kategorija = 'Prekomerna teža'; barva = '#f39c12'; }
+    else if (itm < 35) { kategorija = 'Debelost 1. stopnje'; barva = '#e67e22'; }
+    else if (itm < 40) { kategorija = 'Debelost 2. stopnje'; barva = '#e74c3c'; }
+    else { kategorija = 'Debelost 3. stopnje'; barva = '#c0392b'; }
+
+    box.style.display = 'block';
+    box.innerHTML = `<strong>ITM (indeks telesne mase):</strong> <span style="color:${barva}; font-size: 1.2em; font-weight: bold;">${itm}</span> - <span style="color:${barva};">${kategorija}</span>`;
+  }
+
+  // ============= IZVOZ =============
+  function izvoziCSV() {
+    if (meritve.length === 0) { alert('Ni podatkov za izvoz.'); return; }
+    let csv = 'Datum;Cas;Obdobje;Sistolicni (mm Hg);Diastolicni (mm Hg);Utrip (st./min);Roka;Kategorija;Opomba\n';
+    meritve.forEach(m => {
+      const kat = dolociKategorijo(m.sistolicni, m.diastolicni);
+      const opomba = (m.opomba || '').replace(/;/g, ',').replace(/\n/g, ' ');
+      const roka = m.roka || '';
+      // Pretvori datum iz YYYY-MM-DD v DD.MM.YYYY (slovenski format, ki ga Excel prepozna)
+      const deli = m.datum.split('-');
+      const datumSL = deli.length === 3 ? `${deli[2]}.${deli[1]}.${deli[0]}` : m.datum;
+      csv += `${datumSL};${m.cas};${m.obdobje};${m.sistolicni};${m.diastolicni};${m.utrip};${roka};${kat.ime};${opomba}\n`;
+    });
+    const bom = '﻿';
+    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+    prenesi(blob, `krvni-tlak-${new Date().toISOString().split('T')[0]}.csv`);
+  }
+
+  function izvoziJSON() {
+    const data = { meritve, profil, datumIzvoza: new Date().toISOString(), verzija: 1 };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    prenesi(blob, `krvni-tlak-backup-${new Date().toISOString().split('T')[0]}.json`);
+  }
+
+  function uvoziJSON(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!data.meritve) throw new Error('Napačna oblika datoteke');
+        if (!confirm(`Najdenih ${data.meritve.length} meritev. To bo nadomestilo trenutne podatke. Nadaljevati?`)) return;
+        meritve = data.meritve;
+        if (data.profil) { profil = data.profil; shraniProfilStorage(profil); nastaviProfil(); }
+        shrani(meritve);
+        osveziTabelo();
+        alert('Podatki uvoženi!');
+      } catch(err) {
+        alert('Napaka pri branju datoteke: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function prenesi(blob, ime) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = ime;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function natisniPDF() {
+    if (meritve.length === 0) { alert('Ni podatkov za poročilo.'); return; }
+    const okno = window.open('', '_blank');
+    const d = new Date();
+    const danes = `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`;
+    const povprecje = (arr, key) => Math.round(arr.reduce((s, x) => s + x[key], 0) / arr.length);
+    const sisAvg = povprecje(meritve, 'sistolicni');
+    const diaAvg = povprecje(meritve, 'diastolicni');
+    const utripAvg = povprecje(meritve, 'utrip');
+
+    let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Poročilo - krvni tlak</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 30px; color: #333; }
+      h1 { color: #c0392b; border-bottom: 3px solid #c0392b; padding-bottom: 10px; }
+      h2 { color: #2c3e50; margin-top: 25px; }
+      .profil-box, .povzetek { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; }
+      table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
+      th { background: #2c3e50; color: #fff; padding: 8px; text-align: left; }
+      td { padding: 6px 8px; border-bottom: 1px solid #ddd; }
+      .crisis { background: #5a0000; color: #fff; padding: 2px 6px; border-radius: 4px; }
+      .stage2 { background: #e74c3c; color: #fff; padding: 2px 6px; border-radius: 4px; }
+      .stage1 { background: #e67e22; color: #fff; padding: 2px 6px; border-radius: 4px; }
+      .elevated { background: #f39c12; color: #fff; padding: 2px 6px; border-radius: 4px; }
+      .normal { background: #2ecc71; color: #fff; padding: 2px 6px; border-radius: 4px; }
+      .optimal { background: #27ae60; color: #fff; padding: 2px 6px; border-radius: 4px; }
+      .footer { margin-top: 30px; font-size: 11px; color: #777; border-top: 1px solid #ddd; padding-top: 10px; }
+      @media print { body { padding: 15px; } }
+    </style></head><body>
+    <h1>Poročilo o krvnem tlaku</h1>
+    <p>Datum priprave: ${danes}</p>`;
+
+    if (profil.ime || profil.starost) {
+      html += `<div class="profil-box"><h2 style="margin-top:0;">Pacient</h2>`;
+      if (profil.ime) html += `<div><strong>Ime:</strong> ${profil.ime}</div>`;
+      if (profil.starost) html += `<div><strong>Starost:</strong> ${profil.starost} let</div>`;
+      if (profil.spol) {
+        const spolPrikaz = profil.spol === 'moski' ? 'Moški' :
+                          profil.spol === 'zenska' ? 'Ženska' :
+                          profil.spol === 'drugo' ? 'Drugo' : profil.spol;
+        html += `<div><strong>Spol:</strong> ${spolPrikaz}</div>`;
+      }
+      if (profil.visina && profil.teza) {
+        const vm = profil.visina / 100;
+        const itm = (profil.teza / (vm * vm)).toFixed(1);
+        html += `<div><strong>Višina/teža:</strong> ${profil.visina} cm / ${profil.teza} kg (ITM: ${itm})</div>`;
+      }
+      if (profil.zdravila) html += `<div><strong>Zdravila:</strong> ${profil.zdravila}</div>`;
+      if (profil.opombe) html += `<div><strong>Opombe:</strong> ${profil.opombe}</div>`;
+      html += `</div>`;
+    }
+
+    html += `<div class="povzetek"><h2 style="margin-top:0;">Povzetek</h2>
+      <div><strong>Skupaj meritev:</strong> ${meritve.length}</div>
+      <div><strong>Obdobje:</strong> ${formatDate(meritve[0].datum)} - ${formatDate(meritve[meritve.length-1].datum)}</div>
+      <div><strong>Povprečni tlak:</strong> ${sisAvg}/${diaAvg} mm Hg</div>
+      <div><strong>Povprečni utrip:</strong> ${utripAvg} /min</div>
+    </div>
+    <h2>Vse meritve</h2>
+    <table><thead><tr>
+      <th>Datum</th><th>Čas</th><th>Obdobje</th><th>Sistol.</th><th>Diastol.</th><th>Utrip</th><th>Kategorija</th><th>Opomba</th>
+    </tr></thead><tbody>`;
+
+    [...meritve].reverse().forEach(m => {
+      const kat = dolociKategorijo(m.sistolicni, m.diastolicni);
+      const rokaTxt = m.roka === 'leva' ? '[L] ' : m.roka === 'desna' ? '[D] ' : '';
+      html += `<tr>
+        <td>${formatDate(m.datum)}</td><td>${m.cas}</td><td>${m.obdobje}</td>
+        <td>${m.sistolicni}</td><td>${m.diastolicni}</td><td>${m.utrip}</td>
+        <td><span class="${kat.razred}">${kat.ime}</span></td>
+        <td>${rokaTxt}${m.opomba || ''}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table>
+    <p style="font-size: 11px; color: #777; margin-top: 8px;">Opomba: stolpec "Opomba" lahko vsebuje tudi roko meritve (L/D).</p>
+    <div class="footer">Poročilo pripravljeno z aplikacijo "Dnevnik krvnega tlaka" (avtor: Boštjan Čebron, bostjancebron76@gmail.com). Kategorije po smernicah ESH/AHA.
+    Ta dokument je informativen in ne nadomešča zdravniškega pregleda.</div>
+    <script>window.onload = function(){ window.print(); }</` + `script>
+    </body></html>`;
+
+    okno.document.write(html);
+    okno.document.close();
+  }
+
+  function pobrisiVse() {
+    if (!confirm('Ali res želite izbrisati VSE meritve? Tega ni mogoče razveljaviti!')) return;
+    if (!confirm('Res, res želite izbrisati vse podatke?')) return;
+    meritve = [];
+    shrani(meritve);
+    osveziTabelo();
+    alert('Vsi podatki so izbrisani.');
+  }
+
+  // ============= OPOMNIKI (ICS) =============
+  const OPOMNIKI_KEY = 'krvniTlakOpomniki_v1';
+
+  function validirajCas(cas) {
+    return /^([01]\d|2[0-3]):[0-5]\d$/.test(cas);
+  }
+
+  function shraniNastavitveOpomnikov() {
+    const jutroCas = document.getElementById('opomnikJutroCas').value;
+    const vecerCas = document.getElementById('opomnikVecerCas').value;
+    if (!validirajCas(jutroCas) || !validirajCas(vecerCas)) {
+      document.getElementById('opomnikiInfo').innerHTML =
+        '<div class="status-box elevated" style="margin-top: 20px;">Napaka: ura mora biti v obliki HH:MM (npr. 07:00 ali 20:30).</div>';
+      return;
+    }
+    const nastavitve = {
+      jutroCas: jutroCas,
+      vecerCas: vecerCas,
+      dni: document.getElementById('opomnikDni').value,
+      alarm: document.getElementById('opomnikAlarm').value,
+      jutroVklop: document.getElementById('opomnikJutroVklop').value,
+      vecerVklop: document.getElementById('opomnikVecerVklop').value
+    };
+    localStorage.setItem(OPOMNIKI_KEY, JSON.stringify(nastavitve));
+    document.getElementById('opomnikiInfo').innerHTML =
+      '<div class="status-box optimal" style="margin-top: 20px;">Nastavitve so shranjene.</div>';
+  }
+
+  function naloziNastavitveOpomnikov() {
+    let n = {};
+    try { n = JSON.parse(localStorage.getItem(OPOMNIKI_KEY)) || {}; }
+    catch(e) { n = {}; }
+
+    if (n.jutroCas) document.getElementById('opomnikJutroCas').value = n.jutroCas;
+    if (n.vecerCas) document.getElementById('opomnikVecerCas').value = n.vecerCas;
+    if (n.dni) document.getElementById('opomnikDni').value = n.dni;
+    if (n.alarm) document.getElementById('opomnikAlarm').value = n.alarm;
+    if (n.jutroVklop) document.getElementById('opomnikJutroVklop').value = n.jutroVklop;
+    if (n.vecerVklop) document.getElementById('opomnikVecerVklop').value = n.vecerVklop;
+
+    document.getElementById('opomnikZacetek').value = new Date().toISOString().split('T')[0];
+  }
+
+  function icsFormatDate(d) {
+    // YYYYMMDDTHHmmSS oblika (lokalni čas)
+    const pad = n => String(n).padStart(2, '0');
+    return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) +
+           'T' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+  }
+
+  function icsFormatDateUTC(d) {
+    const pad = n => String(n).padStart(2, '0');
+    return d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) +
+           'T' + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + 'Z';
+  }
+
+  function ustvariICS() {
+    const jutroCas = document.getElementById('opomnikJutroCas').value;
+    const vecerCas = document.getElementById('opomnikVecerCas').value;
+    const zacetek = document.getElementById('opomnikZacetek').value;
+    const dni = parseInt(document.getElementById('opomnikDni').value);
+    const alarmMin = parseInt(document.getElementById('opomnikAlarm').value);
+    const jutroVklop = document.getElementById('opomnikJutroVklop').value === '1';
+    const vecerVklop = document.getElementById('opomnikVecerVklop').value === '1';
+
+    if (!jutroCas || !vecerCas || !zacetek || !dni) {
+      alert('Prosim, izpolnite vsa polja.');
+      return null;
+    }
+    if (!jutroVklop && !vecerVklop) {
+      alert('Vklopite vsaj enega od opomnikov (jutranji ali večerni).');
+      return null;
+    }
+
+    const sedanjostUTC = icsFormatDateUTC(new Date());
+    const [zY, zM, zD] = zacetek.split('-').map(Number);
+
+    let ics = 'BEGIN:VCALENDAR\r\n';
+    ics += 'VERSION:2.0\r\n';
+    ics += 'PRODID:-//Krvni Tlak Dnevnik//SL\r\n';
+    ics += 'CALSCALE:GREGORIAN\r\n';
+    ics += 'METHOD:PUBLISH\r\n';
+    ics += 'X-WR-CALNAME:Merjenje krvnega tlaka\r\n';
+    ics += 'X-WR-TIMEZONE:Europe/Ljubljana\r\n';
+
+    for (let i = 0; i < dni; i++) {
+      const dnevniDatum = new Date(zY, zM - 1, zD + i);
+
+      if (jutroVklop) {
+        const [jh, jm] = jutroCas.split(':').map(Number);
+        const zacZ = new Date(dnevniDatum);
+        zacZ.setHours(jh, jm, 0, 0);
+        const konZ = new Date(zacZ.getTime() + 15 * 60000);
+        const uid = `tlak-jutro-${zacZ.getTime()}@krvni-tlak-app`;
+
+        ics += 'BEGIN:VEVENT\r\n';
+        ics += `UID:${uid}\r\n`;
+        ics += `DTSTAMP:${sedanjostUTC}\r\n`;
+        ics += `DTSTART:${icsFormatDate(zacZ)}\r\n`;
+        ics += `DTEND:${icsFormatDate(konZ)}\r\n`;
+        ics += 'SUMMARY:Izmeri krvni tlak (jutro)\r\n';
+        ics += 'DESCRIPTION:Jutranja meritev krvnega tlaka in srčnega utripa. Pred meritvijo 5 minut mirno sedite. Ne pijte kave\\, ne kadite. Po meritvi vnesite podatke v aplikacijo.\r\n';
+        ics += 'CATEGORIES:Zdravje\r\n';
+        if (alarmMin > 0) {
+          ics += 'BEGIN:VALARM\r\n';
+          ics += 'ACTION:DISPLAY\r\n';
+          ics += 'DESCRIPTION:Čas za jutranjo meritev tlaka\r\n';
+          ics += `TRIGGER:-PT${alarmMin}M\r\n`;
+          ics += 'END:VALARM\r\n';
+        } else {
+          ics += 'BEGIN:VALARM\r\n';
+          ics += 'ACTION:DISPLAY\r\n';
+          ics += 'DESCRIPTION:Čas za jutranjo meritev tlaka\r\n';
+          ics += 'TRIGGER:PT0M\r\n';
+          ics += 'END:VALARM\r\n';
+        }
+        ics += 'END:VEVENT\r\n';
+      }
+
+      if (vecerVklop) {
+        const [vh, vm] = vecerCas.split(':').map(Number);
+        const zacV = new Date(dnevniDatum);
+        zacV.setHours(vh, vm, 0, 0);
+        const konV = new Date(zacV.getTime() + 15 * 60000);
+        const uid = `tlak-vecer-${zacV.getTime()}@krvni-tlak-app`;
+
+        ics += 'BEGIN:VEVENT\r\n';
+        ics += `UID:${uid}\r\n`;
+        ics += `DTSTAMP:${sedanjostUTC}\r\n`;
+        ics += `DTSTART:${icsFormatDate(zacV)}\r\n`;
+        ics += `DTEND:${icsFormatDate(konV)}\r\n`;
+        ics += 'SUMMARY:Izmeri krvni tlak (večer)\r\n';
+        ics += 'DESCRIPTION:Večerna meritev krvnega tlaka in srčnega utripa. Pred meritvijo 5 minut mirno sedite. Po meritvi vnesite podatke v aplikacijo.\r\n';
+        ics += 'CATEGORIES:Zdravje\r\n';
+        if (alarmMin > 0) {
+          ics += 'BEGIN:VALARM\r\n';
+          ics += 'ACTION:DISPLAY\r\n';
+          ics += 'DESCRIPTION:Čas za večerno meritev tlaka\r\n';
+          ics += `TRIGGER:-PT${alarmMin}M\r\n`;
+          ics += 'END:VALARM\r\n';
+        } else {
+          ics += 'BEGIN:VALARM\r\n';
+          ics += 'ACTION:DISPLAY\r\n';
+          ics += 'DESCRIPTION:Čas za večerno meritev tlaka\r\n';
+          ics += 'TRIGGER:PT0M\r\n';
+          ics += 'END:VALARM\r\n';
+        }
+        ics += 'END:VEVENT\r\n';
+      }
+    }
+
+    ics += 'END:VCALENDAR\r\n';
+    return ics;
+  }
+
+  function prenesiOpomnike() {
+    const ics = ustvariICS();
+    if (!ics) return;
+
+    const dni = document.getElementById('opomnikDni').value;
+    const jutroVklop = document.getElementById('opomnikJutroVklop').value === '1';
+    const vecerVklop = document.getElementById('opomnikVecerVklop').value === '1';
+    const dogodkov = parseInt(dni) * ((jutroVklop ? 1 : 0) + (vecerVklop ? 1 : 0));
+
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    prenesi(blob, `opomniki-tlak-${new Date().toISOString().split('T')[0]}.ics`);
+
+    document.getElementById('opomnikiInfo').innerHTML =
+      `<div class="status-box optimal" style="margin-top: 20px;">
+        <h3>Datoteka prenesena!</h3>
+        <div>Ustvarjeno: <strong>${dogodkov} dogodkov</strong> za ${dni} dni.</div>
+        <div style="margin-top: 8px;">Sedaj datoteko uvozite v vaš koledar po navodilih spodaj.</div>
+      </div>`;
+
+    shraniNastavitveOpomnikov();
+  }
+
+  // ============= UREJANJE MERITEV =============
+  let urejaSeId = null;
+
+  function odpriUrediModal(id) {
+    const m = meritve.find(x => x.id === id);
+    if (!m) return;
+    urejaSeId = id;
+    document.getElementById('editDatum').value = m.datum;
+    document.getElementById('editCas').value = m.cas;
+    document.getElementById('editObdobje').value = m.obdobje;
+    document.getElementById('editSistolicni').value = m.sistolicni;
+    document.getElementById('editDiastolicni').value = m.diastolicni;
+    document.getElementById('editUtrip').value = m.utrip;
+    document.getElementById('editRoka').value = m.roka || '';
+    document.getElementById('editOpomba').value = m.opomba || '';
+    document.getElementById('urediModal').classList.add('active');
+  }
+
+  function zapriUrediModal() {
+    document.getElementById('urediModal').classList.remove('active');
+    urejaSeId = null;
+  }
+
+  function shraniUrejanje() {
+    if (urejaSeId === null) return;
+    const i = meritve.findIndex(x => x.id === urejaSeId);
+    if (i === -1) return;
+
+    const datum = document.getElementById('editDatum').value;
+    const cas = document.getElementById('editCas').value;
+    const sis = parseInt(document.getElementById('editSistolicni').value);
+    const dia = parseInt(document.getElementById('editDiastolicni').value);
+    const utrip = parseInt(document.getElementById('editUtrip').value);
+
+    if (!datum || !cas || isNaN(sis) || isNaN(dia) || isNaN(utrip)) {
+      alert('Prosim, izpolnite vsa obvezna polja: datum, čas, vrednosti tlaka in utrip.');
+      return;
+    }
+
+    meritve[i] = {
+      ...meritve[i],
+      datum: datum,
+      cas: cas,
+      obdobje: document.getElementById('editObdobje').value,
+      sistolicni: sis,
+      diastolicni: dia,
+      utrip: utrip,
+      roka: document.getElementById('editRoka').value,
+      opomba: document.getElementById('editOpomba').value.trim()
+    };
+
+    meritve.sort((a,b) => (a.datum + a.cas).localeCompare(b.datum + b.cas));
+    shrani(meritve);
+    zapriUrediModal();
+    osveziTabelo();
+  }
+
+  // Zapri modal ob kliku na ozadje
+  document.getElementById('urediModal').addEventListener('click', (e) => {
+    if (e.target.id === 'urediModal') zapriUrediModal();
+  });
+
+  // ============= TRENDI =============
+  function osveziTrend() {
+    const grid = document.getElementById('statsGrid');
+    if (!grid) return;
+
+    // Odstrani staro opozorilo
+    const star = document.getElementById('trendBox');
+    if (star) star.remove();
+
+    const filtrirane = filtriranjeMeritev();
+    if (filtrirane.length < 4) return; // potrebujemo dovolj podatkov
+
+    // Razdeli na dve polovici za primerjavo
+    const polovica = Math.floor(filtrirane.length / 2);
+    const prva = filtrirane.slice(0, polovica);
+    const druga = filtrirane.slice(polovica);
+
+    const povp = (arr, k) => arr.reduce((s,x) => s + x[k], 0) / arr.length;
+    const sisStara = povp(prva, 'sistolicni');
+    const sisNova = povp(druga, 'sistolicni');
+    const diaStara = povp(prva, 'diastolicni');
+    const diaNova = povp(druga, 'diastolicni');
+    const razlikaSis = Math.round(sisNova - sisStara);
+    const razlikaDia = Math.round(diaNova - diaStara);
+
+    // Povprečje celotnega obdobja
+    const sisAvg = Math.round(povp(filtrirane, 'sistolicni'));
+    const diaAvg = Math.round(povp(filtrirane, 'diastolicni'));
+    const kat = dolociKategorijo(sisAvg, diaAvg);
+
+    let razred = 'trend-stable';
+    let pusc = '→';
+    let sporocilo = '';
+
+    if (Math.abs(razlikaSis) < 3 && Math.abs(razlikaDia) < 3) {
+      razred = 'trend-stable';
+      pusc = '→';
+      sporocilo = `Vrednosti so v izbranem obdobju <strong>stabilne</strong>.`;
+    } else if (razlikaSis > 0 || razlikaDia > 0) {
+      razred = 'trend-up';
+      pusc = '↑';
+      sporocilo = `Tlak se v izbranem obdobju <strong>zvišuje</strong> (sistolični ${razlikaSis > 0 ? '+' : ''}${razlikaSis}, diastolični ${razlikaDia > 0 ? '+' : ''}${razlikaDia} mm Hg).`;
+    } else {
+      razred = 'trend-down';
+      pusc = '↓';
+      sporocilo = `Tlak se v izbranem obdobju <strong>znižuje</strong> (sistolični ${razlikaSis}, diastolični ${razlikaDia} mm Hg). Odlično!`;
+    }
+
+    // Opozorilo, če je povprečje v rdečem območju
+    if (kat.razred === 'stage1' || kat.razred === 'stage2' || kat.razred === 'crisis') {
+      razred = 'trend-warning';
+      sporocilo += ` <br><strong>Pozor:</strong> povprečje (${sisAvg}/${diaAvg}) je v območju "${kat.ime}". Posvetujte se z zdravnikom.`;
+    }
+
+    const box = document.createElement('div');
+    box.id = 'trendBox';
+    box.className = 'trend-box ' + razred;
+    box.innerHTML = `<div class="trend-arrow">${pusc}</div><div>${sporocilo}</div>`;
+    grid.parentNode.insertBefore(box, grid.nextSibling);
+  }
+
+  // ============= HITRI VNOS (ENTER) =============
+  ['sistolicni', 'diastolicni', 'utrip'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (id === 'utrip') {
+          dodajMeritev();
+        } else {
+          // skoči na naslednje polje
+          const naslednje = id === 'sistolicni' ? 'diastolicni' : 'utrip';
+          document.getElementById(naslednje).focus();
+        }
+      }
+    });
+  });
+
+  // ============= UTIL =============
+  function formatDate(iso) {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return `${d}.${m}.${y}`;
+  }
+
+  // ============= INIT =============
+  document.getElementById('currentDate').textContent = new Date().toLocaleDateString('sl-SI', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+  document.getElementById('footerYear').textContent = new Date().getFullYear();
+  inicializirajObrazec();
+  nastaviProfil();
+  osveziTabelo();
+  naloziNastavitveOpomnikov();
+</script>
+</body>
+</html>
