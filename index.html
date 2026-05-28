@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dnevnik krvnega tlaka</title>
+<!-- Anonimna analitika obiskov (Umami) - brez piškotkov, GDPR skladno -->
+<script defer src="https://cloud.umami.is/script.js" data-website-id="7469d7ee-a861-4baf-ad6a-ee4f53dbee8d"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -728,8 +730,16 @@
       <h3 style="margin-top: 25px;">4. Piškotki in sledilniki</h3>
       <p style="margin-top: 10px; line-height: 1.6;">
         Aplikacija <strong>ne uporablja piškotkov za sledenje</strong>, <strong>ne vsebuje oglasov</strong>
-        in <strong>ne uporablja analitičnih orodij</strong> (kot so Google Analytics, Facebook Pixel itd.).
-        Edini tehnični mehanizem za shranjevanje je localStorage, ki služi izključno za hranjenje vaših meritev v brskalniku.
+        in <strong>ne uporablja invazivnih analitičnih orodij</strong> (kot so Google Analytics, Facebook Pixel itd.).
+        Edini tehnični mehanizem za shranjevanje vaših meritev je localStorage v vašem brskalniku.
+      </p>
+      <p style="margin-top: 10px; line-height: 1.6;">
+        Za grobo štetje obiskov uporabljamo storitev <strong>Umami Analytics</strong> (cloud.umami.is), ki je
+        zasnovana z mislijo na zasebnost: <strong>ne uporablja piškotkov</strong>, <strong>ne shranjuje IP naslovov</strong>
+        in <strong>ne ustvarja profilov uporabnikov</strong>. Zbirajo se le anonimni in seštevni podatki
+        (skupno število obiskov, država obiska, vrsta naprave/brskalnika, vir prihoda). Teh podatkov
+        ni mogoče povezati s posameznikom in se ne uporabljajo za oglaševanje. Storitev je v skladu z GDPR
+        in zato po slovenski zakonodaji ne zahteva soglasja s piškotki.
       </p>
 
       <h3 style="margin-top: 25px;">5. Vaše pravice po GDPR</h3>
@@ -770,7 +780,7 @@
       <h3 style="margin-top: 25px;">9. Spremembe te politike</h3>
       <p style="margin-top: 10px; line-height: 1.6;">
         Politika zasebnosti se lahko v prihodnosti posodobi. Veljavna različica je vedno objavljena
-        v tem zavihku v aplikaciji. Datum zadnje posodobitve: <strong>28. maj 2026</strong>.
+        v tem zavihku v aplikaciji. Datum zadnje posodobitve: <strong>29. maj 2026</strong>.
       </p>
 
       <h3 style="margin-top: 25px;">10. Kontakt in pritožbe</h3>
@@ -785,7 +795,8 @@
       <div class="info-box" style="margin-top: 25px; background: #f8f9fa; color: #555;">
         <strong>Tehnična opomba za radovedne:</strong> Aplikacija je ena sama HTML datoteka, ki teče
         v celoti v vašem brskalniku. Gostovana je na GitHub Pages (Microsoft), ki streže samo statične
-        datoteke in ne obdeluje vaših vnešenih podatkov.
+        datoteke in ne obdeluje vaših vnešenih meritev. Skript za anonimno štetje obiskov se naloži
+        s strežnika Umami (cloud.umami.is, gostovan v EU).
       </div>
     </section>
 
