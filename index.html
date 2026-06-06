@@ -404,6 +404,26 @@
         </label>
       </div>
 
+      <h3 style="margin-top: 10px; margin-bottom: 10px;">Dnevni pregled</h3>
+      <div class="info-box">
+        Vsaka vrstica je en dan. Stolpci prikazujejo tlak (sistolični/diastolični) in utrip za jutro, popoldne in večer.
+        Če je v istem obdobju več meritev, je prikazano povprečje.
+      </div>
+      <div class="table-wrap">
+        <table id="tabelaDnevni">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Jutro</th>
+              <th>Popoldne</th>
+              <th>Večer</th>
+            </tr>
+          </thead>
+          <tbody id="dnevniBody"></tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top: 30px; margin-bottom: 10px;">Vse meritve (podrobno)</h3>
       <div class="table-wrap">
         <table id="tabelaMeritev">
           <thead>
@@ -1109,6 +1129,71 @@
     return meritve.filter(m => new Date(m.datum) >= meja);
   }
 
+  // ============= DNEVNI PREGLED (jutro / popoldne / vecer) =============
+  // Določi obdobje meritve. Če je shranjeno 'jutro'/'popoldne'/'vecer', ga uporabi.
+  // Za 'drugo' ali manjkajoče obdobje sklepamo iz časa meritve, da se nobena meritev ne izgubi.
+  function obdobjeMeritve(m) {
+    if (m.obdobje === 'jutro' || m.obdobje === 'popoldne' || m.obdobje === 'vecer') return m.obdobje;
+    // sklepaj iz časa (HH:MM)
+    let ura = 12;
+    if (m.cas && m.cas.indexOf(':') > -1) ura = parseInt(m.cas.split(':')[0], 10);
+    if (isNaN(ura)) ura = 12;
+    return ura < 12 ? 'jutro' : (ura < 17 ? 'popoldne' : 'vecer');
+  }
+
+  // Združi meritve po dnevih v obdobja. Vrne polje { datum, jutro:[], popoldne:[], vecer:[] }
+  // urejeno od najnovejšega dne navzdol.
+  function zdruziPoDnevih(seznam) {
+    const dnevi = {};
+    seznam.forEach(m => {
+      if (!dnevi[m.datum]) dnevi[m.datum] = { datum: m.datum, jutro: [], popoldne: [], vecer: [] };
+      dnevi[m.datum][obdobjeMeritve(m)].push(m);
+    });
+    return Object.values(dnevi).sort((a, b) => b.datum.localeCompare(a.datum));
+  }
+
+  // Povprečje skupine meritev -> { sis, dia, utrip, n } ali null če je skupina prazna.
+  function povprecjeObdobja(skupina) {
+    if (!skupina || skupina.length === 0) return null;
+    const r = Math.round;
+    const sis = r(skupina.reduce((s, x) => s + x.sistolicni, 0) / skupina.length);
+    const dia = r(skupina.reduce((s, x) => s + x.diastolicni, 0) / skupina.length);
+    const utripMeritve = skupina.filter(x => x.utrip != null && x.utrip !== '' && !isNaN(x.utrip));
+    const utrip = utripMeritve.length ? r(utripMeritve.reduce((s, x) => s + Number(x.utrip), 0) / utripMeritve.length) : null;
+    return { sis, dia, utrip, n: skupina.length };
+  }
+
+  // HTML vsebina celice za eno obdobje (za tabelo na zaslonu, z barvno značko).
+  function celicaObdobja(skupina) {
+    const p = povprecjeObdobja(skupina);
+    if (!p) return '<span style="color:#bbb;">—</span>';
+    const kat = dolociKategorijo(p.sis, p.dia);
+    const utripTxt = p.utrip != null ? `<span style="color:#666; font-size:0.85em;"> · ${p.utrip}/min</span>` : '';
+    const vecTxt = p.n > 1 ? `<span style="color:#999; font-size:0.78em;"> (povp. ${p.n})</span>` : '';
+    return `<span class="cat-badge cat-${kat.razred}">${p.sis}/${p.dia}</span>${utripTxt}${vecTxt}`;
+  }
+
+  function osveziDnevniPregled() {
+    const tbody = document.getElementById('dnevniBody');
+    if (!tbody) return;
+    const dnevi = zdruziPoDnevih(filtriranjeMeritev());
+    if (dnevi.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px; color: #999;">Ni meritev za to obdobje.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = '';
+    dnevi.forEach(dan => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${formatDate(dan.datum)}</strong></td>
+        <td>${celicaObdobja(dan.jutro)}</td>
+        <td>${celicaObdobja(dan.popoldne)}</td>
+        <td>${celicaObdobja(dan.vecer)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
   function osveziTabelo() {
     const tbody = document.getElementById('tabelaBody');
     const filtrirane = filtriranjeMeritev().slice().reverse();
@@ -1140,6 +1225,7 @@
         tbody.appendChild(tr);
       });
     }
+    osveziDnevniPregled();
     osveziStatistiko();
     osveziTrend();
   }
@@ -1202,48 +1288,59 @@
       meja.setDate(meja.getDate() - dni);
       podatki = podatki.filter(m => new Date(m.datum) >= meja);
     }
-    podatki.sort((a,b) => (a.datum + a.cas).localeCompare(b.datum + b.cas));
 
-    const labels = podatki.map(m => `${formatDate(m.datum)} ${m.cas}`);
-    const sisData = podatki.map(m => m.sistolicni);
-    const diaData = podatki.map(m => m.diastolicni);
-    const utripData = podatki.map(m => m.utrip);
+    // Združi po dnevih in obdobjih -> dnevna povprečja po obdobju.
+    // Os X = dnevi (od najstarejšega do najnovejšega). Za vsako obdobje
+    // (jutro/popoldne/večer) svoja črta; manjkajoče vrednosti so vrzeli (null).
+    const dnevi = zdruziPoDnevih(podatki).slice().sort((a, b) => a.datum.localeCompare(b.datum));
+    const labels = dnevi.map(d => formatDate(d.datum));
+
+    const serija = (obd, polje) => dnevi.map(d => {
+      const p = povprecjeObdobja(d[obd]);
+      return p ? p[polje] : null;
+    });
+
+    // Barve po obdobju (enake za tlak in utrip)
+    const barvaJutro = '#e67e22';    // oranžna (jutro)
+    const barvaPopoldne = '#16a085'; // zelena (popoldne)
+    const barvaVecer = '#8e44ad';    // vijolična (večer)
+
+    const skupniDataset = (obd, naziv, barva, polje) => ({
+      label: naziv,
+      data: serija(obd, polje),
+      borderColor: barva,
+      backgroundColor: barva,
+      borderWidth: 2,
+      tension: 0.3,
+      fill: false,
+      spanGaps: true
+    });
 
     if (grafKT) grafKT.destroy();
     if (grafUT) grafUT.destroy();
 
+    // --- Graf 1: sistolični (polna črta) + diastolični (črtkana) po obdobjih ---
     const ctx1 = document.getElementById('grafKrvniTlak').getContext('2d');
     grafKT = new Chart(ctx1, {
       type: 'line',
       data: {
         labels: labels,
         datasets: [
-          {
-            label: 'Sistolični (zgornji)',
-            data: sisData,
-            borderColor: '#c0392b',
-            backgroundColor: 'rgba(192,57,43,0.1)',
-            borderWidth: 2,
-            tension: 0.3,
-            fill: true
-          },
-          {
-            label: 'Diastolični (spodnji)',
-            data: diaData,
-            borderColor: '#2980b9',
-            backgroundColor: 'rgba(41,128,185,0.1)',
-            borderWidth: 2,
-            tension: 0.3,
-            fill: true
-          }
+          { ...skupniDataset('jutro',    'Jutro – sistolični',    barvaJutro,    'sis') },
+          { ...skupniDataset('popoldne', 'Popoldne – sistolični', barvaPopoldne, 'sis') },
+          { ...skupniDataset('vecer',    'Večer – sistolični',    barvaVecer,    'sis') },
+          { ...skupniDataset('jutro',    'Jutro – diastolični',    barvaJutro,    'dia'), borderDash: [6, 4], borderWidth: 1.5 },
+          { ...skupniDataset('popoldne', 'Popoldne – diastolični', barvaPopoldne, 'dia'), borderDash: [6, 4], borderWidth: 1.5 },
+          { ...skupniDataset('vecer',    'Večer – diastolični',    barvaVecer,    'dia'), borderDash: [6, 4], borderWidth: 1.5 }
         ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
-          title: { display: true, text: 'Krvni tlak (mm Hg)', font: { size: 16 } },
-          legend: { position: 'top' }
+          title: { display: true, text: 'Krvni tlak po obdobjih (mm Hg) – polna: sistolični, črtkana: diastolični', font: { size: 14 } },
+          legend: { position: 'top', labels: { boxWidth: 18, font: { size: 11 } } }
         },
         scales: {
           y: { beginAtZero: false, suggestedMin: 50, suggestedMax: 200 }
@@ -1251,27 +1348,25 @@
       }
     });
 
+    // --- Graf 2: srčni utrip po obdobjih ---
     const ctx2 = document.getElementById('grafUtrip').getContext('2d');
     grafUT = new Chart(ctx2, {
       type: 'line',
       data: {
         labels: labels,
-        datasets: [{
-          label: 'Srčni utrip',
-          data: utripData,
-          borderColor: '#8e44ad',
-          backgroundColor: 'rgba(142,68,173,0.15)',
-          borderWidth: 2,
-          tension: 0.3,
-          fill: true
-        }]
+        datasets: [
+          { ...skupniDataset('jutro',    'Jutro',    barvaJutro,    'utrip') },
+          { ...skupniDataset('popoldne', 'Popoldne', barvaPopoldne, 'utrip') },
+          { ...skupniDataset('vecer',    'Večer',    barvaVecer,    'utrip') }
+        ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
-          title: { display: true, text: 'Srčni utrip (št./min)', font: { size: 16 } },
-          legend: { position: 'top' }
+          title: { display: true, text: 'Srčni utrip po obdobjih (št./min)', font: { size: 14 } },
+          legend: { position: 'top', labels: { boxWidth: 18, font: { size: 11 } } }
         },
         scales: {
           y: { beginAtZero: false, suggestedMin: 40, suggestedMax: 120 }
@@ -1330,15 +1425,34 @@
   // ============= IZVOZ =============
   function izvoziCSV() {
     if (meritve.length === 0) { alert('Ni podatkov za izvoz.'); return; }
-    let csv = 'Datum;Cas;Obdobje;Sistolicni (mm Hg);Diastolicni (mm Hg);Utrip (st./min);Roka;Kategorija;Opomba\n';
+    const datumVSL = (iso) => {
+      const deli = (iso || '').split('-');
+      return deli.length === 3 ? `${deli[2]}.${deli[1]}.${deli[0]}` : iso;
+    };
+    // Celica obdobja za CSV: "120/80 (70/min)" ali prazno
+    const csvCelica = (skupina) => {
+      const p = povprecjeObdobja(skupina);
+      if (!p) return '';
+      const utripTxt = p.utrip != null ? ` (${p.utrip}/min)` : '';
+      const vecTxt = p.n > 1 ? ` povp.${p.n}` : '';
+      return `${p.sis}/${p.dia}${utripTxt}${vecTxt}`;
+    };
+
+    // --- 1. del: dnevni pregled (jutro / popoldne / vecer) ---
+    let csv = 'DNEVNI PREGLED (povprecje na obdobje)\n';
+    csv += 'Datum;Jutro;Popoldne;Vecer\n';
+    zdruziPoDnevih(meritve).forEach(dan => {
+      csv += `${datumVSL(dan.datum)};${csvCelica(dan.jutro)};${csvCelica(dan.popoldne)};${csvCelica(dan.vecer)}\n`;
+    });
+
+    // --- 2. del: vse posamezne meritve (podrobno) ---
+    csv += '\nVSE MERITVE (podrobno)\n';
+    csv += 'Datum;Cas;Obdobje;Sistolicni (mm Hg);Diastolicni (mm Hg);Utrip (st./min);Roka;Kategorija;Opomba\n';
     meritve.forEach(m => {
       const kat = dolociKategorijo(m.sistolicni, m.diastolicni);
       const opomba = (m.opomba || '').replace(/;/g, ',').replace(/\n/g, ' ');
       const roka = m.roka || '';
-      // Pretvori datum iz YYYY-MM-DD v DD.MM.YYYY (slovenski format, ki ga Excel prepozna)
-      const deli = m.datum.split('-');
-      const datumSL = deli.length === 3 ? `${deli[2]}.${deli[1]}.${deli[0]}` : m.datum;
-      csv += `${datumSL};${m.cas};${m.obdobje};${m.sistolicni};${m.diastolicni};${m.utrip};${roka};${kat.ime};${opomba}\n`;
+      csv += `${datumVSL(m.datum)};${m.cas};${m.obdobje};${m.sistolicni};${m.diastolicni};${m.utrip};${roka};${kat.ime};${opomba}\n`;
     });
     const bom = '﻿';
     const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
@@ -1402,12 +1516,12 @@
       table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
       th { background: #2c3e50; color: #fff; padding: 8px; text-align: left; }
       td { padding: 6px 8px; border-bottom: 1px solid #ddd; }
-      .crisis { background: #5a0000; color: #fff; padding: 2px 6px; border-radius: 4px; }
-      .stage2 { background: #e74c3c; color: #fff; padding: 2px 6px; border-radius: 4px; }
-      .stage1 { background: #e67e22; color: #fff; padding: 2px 6px; border-radius: 4px; }
-      .elevated { background: #f39c12; color: #fff; padding: 2px 6px; border-radius: 4px; }
-      .normal { background: #2ecc71; color: #fff; padding: 2px 6px; border-radius: 4px; }
-      .optimal { background: #27ae60; color: #fff; padding: 2px 6px; border-radius: 4px; }
+      .crisis { color: #8b0000; font-weight: bold; }
+      .stage2 { color: #c0392b; font-weight: bold; }
+      .stage1 { color: #d35400; font-weight: bold; }
+      .elevated { color: #b9770e; font-weight: bold; }
+      .normal { color: #1e8449; font-weight: bold; }
+      .optimal { color: #196f3d; font-weight: bold; }
       .footer { margin-top: 30px; font-size: 11px; color: #777; border-top: 1px solid #ddd; padding-top: 10px; }
       @media print { body { padding: 15px; } }
     </style></head><body>
@@ -1440,7 +1554,35 @@
       <div><strong>Povprečni tlak:</strong> ${sisAvg}/${diaAvg} mm Hg</div>
       <div><strong>Povprečni utrip:</strong> ${utripAvg} /min</div>
     </div>
-    <h2>Vse meritve</h2>
+    <h2>Dnevni pregled (jutro / popoldne / večer)</h2>
+    <table><thead><tr>
+      <th>Datum</th><th>Jutro</th><th>Popoldne</th><th>Večer</th>
+    </tr></thead><tbody>`;
+
+    // Celica obdobja za PDF: tlak je obarvan po kategoriji (brez ozadja, da se
+    // pravilno natisne), pulz je temno siv, da se loči od tlaka.
+    const pdfCelica = (skupina) => {
+      const p = povprecjeObdobja(skupina);
+      if (!p) return '<span style="color:#bbb;">—</span>';
+      const kat = dolociKategorijo(p.sis, p.dia);
+      const utripTxt = p.utrip != null ? ` <span style="color:#555;">&middot; ${p.utrip}/min</span>` : '';
+      const vecTxt = p.n > 1 ? ` <span style="color:#999; font-size:0.9em;">(povp. ${p.n})</span>` : '';
+      return `<span class="${kat.razred}">${p.sis}/${p.dia}</span>${utripTxt}${vecTxt}`;
+    };
+
+    zdruziPoDnevih(meritve).forEach(dan => {
+      html += `<tr>
+        <td><strong>${formatDate(dan.datum)}</strong></td>
+        <td>${pdfCelica(dan.jutro)}</td>
+        <td>${pdfCelica(dan.popoldne)}</td>
+        <td>${pdfCelica(dan.vecer)}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table>
+    <p style="font-size: 11px; color: #777; margin-top: 8px;">Vsaka vrstica je en dan. Vrednost je sistolični/diastolični tlak; če je bilo v obdobju več meritev, je prikazano povprečje (z oznako "povp."). Barva označuje kategorijo po smernicah ESH/AHA.</p>
+
+    <h2>Vse meritve (podrobno)</h2>
     <table><thead><tr>
       <th>Datum</th><th>Čas</th><th>Obdobje</th><th>Sistol.</th><th>Diastol.</th><th>Utrip</th><th>Kategorija</th><th>Opomba</th>
     </tr></thead><tbody>`;
