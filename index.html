@@ -4,9 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dnevnik krvnega tlaka</title>
+<!-- PWA: aplikacijo je mogoče namestiti na telefon, deluje tudi brez interneta -->
+<meta name="theme-color" content="#c0392b">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Krvni tlak">
 <!-- Anonimna analitika obiskov (Umami) - brez piškotkov, GDPR skladno -->
 <script defer src="https://cloud.umami.is/script.js" data-website-id="7469d7ee-a861-4baf-ad6a-ee4f53dbee8d"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<!-- Chart.js je shranjen lokalno, da graf deluje tudi brez internetne povezave -->
+<script src="chart.umd.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -311,6 +320,14 @@
     <a href="#" onclick="prikaziZavihek('zasebnost'); return false;" style="color: #1565C0; text-decoration: underline; font-weight: bold;">Več o zasebnosti &raquo;</a>
   </div>
 
+  <!-- OPOZORILO ZA VARNOSTNO KOPIJO (prikaže se, če podatki dolgo niso bili izvoženi) -->
+  <div id="backupOpozorilo" style="display: none; background: #fff3cd; border-bottom: 1px solid #ffe69c; padding: 10px 30px; font-size: 0.88em; color: #856404; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; text-align: center;">
+    <span style="font-size: 1.1em;">⚠️</span>
+    <span id="backupBesedilo"></span>
+    <button class="btn btn-small" style="background: #856404; color: #fff; margin: 0;" onclick="prikaziZavihek('izvoz')">Izvozi zdaj</button>
+    <button class="btn btn-small btn-secondary" style="margin: 0;" onclick="odloziBackupOpozorilo()">Opomni me čez 3 dni</button>
+  </div>
+
   <nav class="tabs">
     <button class="tab active" data-tab="vnos">Vnos meritve</button>
     <button class="tab" data-tab="pregled">Pregled in tabela</button>
@@ -390,6 +407,9 @@
     <!-- PREGLED -->
     <section class="section" id="pregled">
       <h2 style="margin-bottom: 15px;">Pregled meritev</h2>
+
+      <!-- 7-dnevno domače povprečje po smernicah ESH -->
+      <div id="domacaKartica"></div>
 
       <div class="stats-grid" id="statsGrid"></div>
 
@@ -1001,6 +1021,47 @@
   let grafKT = null;
   let grafUT = null;
 
+  // ============= OPOZORILO ZA VARNOSTNO KOPIJO =============
+  // Podatki živijo samo v brskalniku (localStorage) in jih lahko brskalnik
+  // ob čiščenju izbriše. Zato uporabnika opomnimo, če izvoza ni bilo >= 14 dni.
+  const BACKUP_KEY = 'krvniTlakZadnjiIzvoz_v1';
+  const BACKUP_SNOOZE_KEY = 'krvniTlakBackupOdlog_v1';
+  const EN_DAN = 24 * 60 * 60 * 1000;
+
+  // Pokliče se ob vsakem izvozu/uvozu - zabeleži datum in skrije opozorilo.
+  function zabeleziIzvoz() {
+    try { localStorage.setItem(BACKUP_KEY, new Date().toISOString()); } catch (e) {}
+    const op = document.getElementById('backupOpozorilo');
+    if (op) op.style.display = 'none';
+  }
+
+  function odloziBackupOpozorilo() {
+    try { localStorage.setItem(BACKUP_SNOOZE_KEY, String(Date.now() + 3 * EN_DAN)); } catch (e) {}
+    document.getElementById('backupOpozorilo').style.display = 'none';
+  }
+
+  function preveriVarnostnoKopijo() {
+    if (meritve.length < 3) return; // premalo podatkov, da bi nadlegovali
+    const zdaj = Date.now();
+    const odlog = parseInt(localStorage.getItem(BACKUP_SNOOZE_KEY) || '0', 10);
+    if (odlog && zdaj < odlog) return;
+
+    const zadnjiIzvoz = localStorage.getItem(BACKUP_KEY);
+    let dni;
+    if (zadnjiIzvoz) {
+      dni = Math.floor((zdaj - new Date(zadnjiIzvoz).getTime()) / EN_DAN);
+    } else {
+      // izvoza še ni bilo - štejemo od najstarejše meritve
+      dni = Math.floor((zdaj - new Date(meritve[0].datum + 'T00:00:00').getTime()) / EN_DAN);
+    }
+    if (dni < 14) return;
+
+    document.getElementById('backupBesedilo').innerHTML = zadnjiIzvoz
+      ? `<strong>Varnostna kopija:</strong> podatkov niste izvozili že ${dni} dni. Shranjeni so samo v tem brskalniku - priporočamo izvoz (JSON ali CSV).`
+      : `<strong>Varnostna kopija:</strong> podatkov še niste izvozili. Shranjeni so samo v tem brskalniku - priporočamo izvoz (JSON ali CSV).`;
+    document.getElementById('backupOpozorilo').style.display = 'flex';
+  }
+
   // ============= TABS =============
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -1226,8 +1287,55 @@
       });
     }
     osveziDnevniPregled();
+    osveziDomacePovprecje();
     osveziStatistiko();
     osveziTrend();
+  }
+
+  // ============= 7-DNEVNO DOMAČE POVPREČJE (smernice ESH) =============
+  // Za meritve DOMA velja nižja meja kot v ambulanti: hipertenzija pri
+  // povprečju >= 135/85 mm Hg (v ambulanti 140/90). Povprečje zadnjih 7 dni
+  // je podatek, ki ga zdravniki najraje vidijo.
+  function osveziDomacePovprecje() {
+    const el = document.getElementById('domacaKartica');
+    if (!el) return;
+
+    const meja = new Date();
+    meja.setHours(0, 0, 0, 0);
+    meja.setDate(meja.getDate() - 6); // danes + 6 dni nazaj = 7 dni
+    const zadnje = meritve.filter(m => new Date(m.datum + 'T00:00:00') >= meja);
+
+    if (zadnje.length < 3) { el.innerHTML = ''; return; }
+
+    const povp = (arr, k) => Math.round(arr.reduce((s, x) => s + x[k], 0) / arr.length);
+    const sis = povp(zadnje, 'sistolicni');
+    const dia = povp(zadnje, 'diastolicni');
+    const dniSteviloSet = new Set(zadnje.map(m => m.datum));
+
+    const jutranje = zadnje.filter(m => obdobjeMeritve(m) === 'jutro');
+    const vecerne = zadnje.filter(m => obdobjeMeritve(m) === 'vecer');
+    const delTxt = (naziv, arr) => arr.length
+      ? `${naziv}: <strong>${povp(arr, 'sistolicni')}/${povp(arr, 'diastolicni')}</strong> (${arr.length}×)`
+      : `${naziv}: <span style="color:#999;">ni meritev</span>`;
+
+    const vCilju = sis < 135 && dia < 85;
+    const barva = vCilju ? '#27ae60' : (sis >= 160 || dia >= 100 ? '#e74c3c' : '#e67e22');
+    const ocena = vCilju
+      ? 'V ciljnem območju za domače meritve (pod 135/85).'
+      : 'Nad ciljno mejo za domače meritve (135/85) - vrednosti pokažite zdravniku.';
+
+    el.innerHTML = `
+      <div style="background: #fff; border: 2px solid ${barva}; border-left-width: 8px; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+        <div>
+          <div style="font-size: 0.82em; font-weight: 600; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px;">Domače povprečje - zadnjih 7 dni</div>
+          <div style="font-size: 2em; font-weight: 700; color: ${barva};">${sis}/${dia} <span style="font-size: 0.45em; color: #6c757d; font-weight: 600;">mm Hg</span></div>
+        </div>
+        <div style="font-size: 0.92em; color: #495057; line-height: 1.6;">
+          ${delTxt('Jutro', jutranje)} &nbsp;·&nbsp; ${delTxt('Večer', vecerne)}<br>
+          <span style="color: ${barva}; font-weight: 600;">${ocena}</span><br>
+          <span style="font-size: 0.85em; color: #6c757d;">${zadnje.length} meritev v ${dniSteviloSet.size} dneh · po smernicah ESH za merjenje doma velja meja 135/85 mm Hg.</span>
+        </div>
+      </div>`;
   }
 
   function izbrisi(id) {
@@ -1279,6 +1387,34 @@
   }
 
   // ============= GRAF =============
+  // Vtičnik, ki na graf nariše vodoravne črtkane ciljne meje (135/85 za domače meritve).
+  const ciljneMejePlugin = {
+    id: 'ciljneMeje',
+    afterDraw(chart, args, opts) {
+      const linije = (opts && opts.linije) || [];
+      const { ctx, chartArea, scales } = chart;
+      if (!chartArea || !scales.y) return;
+      linije.forEach(l => {
+        const y = scales.y.getPixelForValue(l.vrednost);
+        if (y < chartArea.top || y > chartArea.bottom) return;
+        ctx.save();
+        ctx.strokeStyle = l.barva;
+        ctx.setLineDash([8, 5]);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(chartArea.left, y);
+        ctx.lineTo(chartArea.right, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = l.barva;
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(l.oznaka, chartArea.right - 4, y - 5);
+        ctx.restore();
+      });
+    }
+  };
+
   function osveziGraf() {
     const filter = document.getElementById('grafFilter').value;
     let podatki = [...meritve];
@@ -1298,6 +1434,20 @@
     const serija = (obd, polje) => dnevi.map(d => {
       const p = povprecjeObdobja(d[obd]);
       return p ? p[polje] : null;
+    });
+
+    // --- 7-dnevno drseče povprečje (vsa obdobja skupaj) ---
+    // Za vsak dan: povprečje vseh dnevnih povprečij v oknu zadnjih 7 koledarskih dni.
+    const dnevnaPovprecja = dnevi.map(d => povprecjeObdobja([...d.jutro, ...d.popoldne, ...d.vecer]));
+    const drsece = (polje) => dnevi.map((d, i) => {
+      const datumD = new Date(d.datum + 'T00:00:00');
+      const okno = [];
+      for (let j = 0; j < dnevi.length; j++) {
+        const razlika = (datumD - new Date(dnevi[j].datum + 'T00:00:00')) / 86400000;
+        if (razlika >= 0 && razlika <= 6 && dnevnaPovprecja[j]) okno.push(dnevnaPovprecja[j][polje]);
+      }
+      if (!okno.length) return null;
+      return Math.round((okno.reduce((s, x) => s + x, 0) / okno.length) * 10) / 10;
     });
 
     // Barve po obdobju (enake za tlak in utrip)
@@ -1331,16 +1481,25 @@
           { ...skupniDataset('vecer',    'Večer – sistolični',    barvaVecer,    'sis') },
           { ...skupniDataset('jutro',    'Jutro – diastolični',    barvaJutro,    'dia'), borderDash: [6, 4], borderWidth: 1.5 },
           { ...skupniDataset('popoldne', 'Popoldne – diastolični', barvaPopoldne, 'dia'), borderDash: [6, 4], borderWidth: 1.5 },
-          { ...skupniDataset('vecer',    'Večer – diastolični',    barvaVecer,    'dia'), borderDash: [6, 4], borderWidth: 1.5 }
+          { ...skupniDataset('vecer',    'Večer – diastolični',    barvaVecer,    'dia'), borderDash: [6, 4], borderWidth: 1.5 },
+          { label: '7-dnevno povprečje – sistolični', data: drsece('sis'), borderColor: '#2c3e50', backgroundColor: '#2c3e50',
+            borderWidth: 3.5, pointRadius: 0, tension: 0.3, fill: false, spanGaps: true },
+          { label: '7-dnevno povprečje – diastolični', data: drsece('dia'), borderColor: '#2c3e50', backgroundColor: '#2c3e50',
+            borderDash: [10, 5], borderWidth: 2.5, pointRadius: 0, tension: 0.3, fill: false, spanGaps: true }
         ]
       },
+      plugins: [ciljneMejePlugin],
       options: {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
           title: { display: true, text: 'Krvni tlak po obdobjih (mm Hg) – polna: sistolični, črtkana: diastolični', font: { size: 14 } },
-          legend: { position: 'top', labels: { boxWidth: 18, font: { size: 11 } } }
+          legend: { position: 'top', labels: { boxWidth: 18, font: { size: 11 } } },
+          ciljneMeje: { linije: [
+            { vrednost: 135, oznaka: 'ciljna meja 135 (sistolični, doma)', barva: '#27ae60' },
+            { vrednost: 85,  oznaka: 'ciljna meja 85 (diastolični, doma)', barva: '#27ae60' }
+          ] }
         },
         scales: {
           y: { beginAtZero: false, suggestedMin: 50, suggestedMax: 200 }
@@ -1457,12 +1616,14 @@
     const bom = '﻿';
     const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
     prenesi(blob, `krvni-tlak-${new Date().toISOString().split('T')[0]}.csv`);
+    zabeleziIzvoz();
   }
 
   function izvoziJSON() {
     const data = { meritve, profil, datumIzvoza: new Date().toISOString(), verzija: 1 };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     prenesi(blob, `krvni-tlak-backup-${new Date().toISOString().split('T')[0]}.json`);
+    zabeleziIzvoz();
   }
 
   function uvoziJSON(event) {
@@ -1478,6 +1639,7 @@
         if (data.profil) { profil = data.profil; shraniProfilStorage(profil); nastaviProfil(); }
         shrani(meritve);
         osveziTabelo();
+        zabeleziIzvoz(); // uvožena datoteka pomeni, da varnostna kopija obstaja
         alert('Podatki uvoženi!');
       } catch(err) {
         alert('Napaka pri branju datoteke: ' + err.message);
@@ -1941,6 +2103,16 @@
     return `${d}.${m}.${y}`;
   }
 
+  // ============= PWA: SERVICE WORKER =============
+  // Omogoči namestitev na telefon in delovanje brez interneta.
+  // Na file:// (odpiranje datoteke z diska) service worker ne deluje - preskočimo.
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .catch(err => console.log('Service worker ni bil registriran:', err));
+    });
+  }
+
   // ============= INIT =============
   document.getElementById('currentDate').textContent = new Date().toLocaleDateString('sl-SI', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
@@ -1950,6 +2122,7 @@
   nastaviProfil();
   osveziTabelo();
   naloziNastavitveOpomnikov();
+  preveriVarnostnoKopijo();
 </script>
 </body>
 </html>

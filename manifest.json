@@ -1,0 +1,16 @@
+{
+  "name": "Dnevnik krvnega tlaka",
+  "short_name": "Krvni tlak",
+  "description": "Spremljanje krvnega tlaka in srčnega utripa. Vsi podatki ostanejo na vaši napravi.",
+  "lang": "sl",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#c0392b",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
