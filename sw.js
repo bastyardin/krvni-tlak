@@ -6,7 +6,7 @@
 // različice spodaj (v1 -> v2 -> v3 ...), da uporabniki ob
 // naslednjem obisku dobijo svežo kopijo datotek.
 // ============================================================
-const CACHE = 'krvni-tlak-v1';
+const CACHE = 'krvni-tlak-v2';
 
 // Datoteke, ki se shranijo v predpomnilnik ob namestitvi
 const DATOTEKE = [
@@ -19,13 +19,16 @@ const DATOTEKE = [
   './apple-touch-icon.png'
 ];
 
-// Namestitev: shrani vse datoteke aplikacije
+// Namestitev: shrani vse datoteke aplikacije.
+// Namerno BREZ samodejnega skipWaiting - nova različica počaka, da uporabnik
+// v aplikaciji klikne "Osveži" (glej trak o posodobitvi v index.html).
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE)
-      .then((c) => c.addAll(DATOTEKE))
-      .then(() => self.skipWaiting())
-  );
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(DATOTEKE)));
+});
+
+// Aplikacija sporoči, da uporabnik želi takoj preklopiti na novo različico
+self.addEventListener('message', (e) => {
+  if (e.data === 'SKIP_WAITING') self.skipWaiting();
 });
 
 // Aktivacija: pobriši stare različice predpomnilnika

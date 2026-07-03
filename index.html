@@ -256,12 +256,14 @@
   }
   .modal-head h3 { font-size: 1.2em; }
   .modal-close {
-    background: rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.25);
     border: none; color: #fff;
-    width: 32px; height: 32px; border-radius: 50%;
-    cursor: pointer; font-size: 1.2em;
+    width: 44px; height: 44px; border-radius: 50%;
+    cursor: pointer; font-size: 1.35em;
+    flex-shrink: 0;
   }
-  .modal-close:hover { background: rgba(255,255,255,0.35); }
+  .modal-close:hover { background: rgba(0,0,0,0.4); }
+  .modal-close:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
   .modal-body { padding: 22px; }
 
   /* Trendi */
@@ -329,7 +331,7 @@
   </div>
 
   <nav class="tabs">
-    <button class="tab active" data-tab="vnos">Vnos meritve</button>
+    <button class="tab active" data-tab="vnos" aria-current="page">Vnos meritve</button>
     <button class="tab" data-tab="pregled">Pregled in tabela</button>
     <button class="tab" data-tab="graf">Graf</button>
     <button class="tab" data-tab="profil">Moj profil</button>
@@ -371,15 +373,15 @@
       <div class="form-grid">
         <div class="form-group">
           <label for="sistolicni">Sistolični (zgornji) - mm Hg</label>
-          <input type="number" id="sistolicni" min="50" max="260" placeholder="npr. 120">
+          <input type="number" inputmode="numeric" id="sistolicni" min="50" max="260" placeholder="npr. 120">
         </div>
         <div class="form-group">
           <label for="diastolicni">Diastolični (spodnji) - mm Hg</label>
-          <input type="number" id="diastolicni" min="30" max="180" placeholder="npr. 80">
+          <input type="number" inputmode="numeric" id="diastolicni" min="30" max="180" placeholder="npr. 80">
         </div>
         <div class="form-group">
           <label for="utrip">Srčni utrip - št./min</label>
-          <input type="number" id="utrip" min="30" max="220" placeholder="npr. 70">
+          <input type="number" inputmode="numeric" id="utrip" min="30" max="220" placeholder="npr. 70">
         </div>
         <div class="form-group">
           <label for="roka">Roka</label>
@@ -499,7 +501,7 @@
         </div>
         <div class="form-group">
           <label for="starost">Starost</label>
-          <input type="number" id="starost" min="0" max="120" placeholder="leta">
+          <input type="number" inputmode="numeric" id="starost" min="0" max="120" placeholder="leta">
         </div>
         <div class="form-group">
           <label for="spol">Spol</label>
@@ -512,11 +514,11 @@
         </div>
         <div class="form-group">
           <label for="visina">Višina (cm)</label>
-          <input type="number" id="visina" min="50" max="250" placeholder="npr. 175">
+          <input type="number" inputmode="numeric" id="visina" min="50" max="250" placeholder="npr. 175">
         </div>
         <div class="form-group">
           <label for="teza">Teža (kg)</label>
-          <input type="number" id="teza" min="20" max="300" step="0.1" placeholder="npr. 80">
+          <input type="number" inputmode="decimal" id="teza" min="20" max="300" step="0.1" placeholder="npr. 80">
         </div>
       </div>
 
@@ -563,7 +565,7 @@
         </div>
         <div class="form-group">
           <label for="opomnikDni">Število dni</label>
-          <input type="number" id="opomnikDni" value="30" min="1" max="365">
+          <input type="number" inputmode="numeric" id="opomnikDni" value="30" min="1" max="365">
         </div>
       </div>
 
@@ -844,10 +846,10 @@
 
   <!-- Modal za urejanje meritve -->
   <div class="modal-overlay" id="urediModal">
-    <div class="modal-box">
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="urediModalNaslov">
       <div class="modal-head">
-        <h3>Uredi meritev</h3>
-        <button class="modal-close" onclick="zapriUrediModal()">&times;</button>
+        <h3 id="urediModalNaslov">Uredi meritev</h3>
+        <button class="modal-close" onclick="zapriUrediModal()" aria-label="Zapri okno za urejanje" title="Zapri">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-grid">
@@ -872,15 +874,15 @@
         <div class="form-grid" style="margin-top: 12px;">
           <div class="form-group">
             <label for="editSistolicni">Sistolični (mm Hg)</label>
-            <input type="number" id="editSistolicni" min="50" max="260">
+            <input type="number" inputmode="numeric" id="editSistolicni" min="50" max="260">
           </div>
           <div class="form-group">
             <label for="editDiastolicni">Diastolični (mm Hg)</label>
-            <input type="number" id="editDiastolicni" min="30" max="180">
+            <input type="number" inputmode="numeric" id="editDiastolicni" min="30" max="180">
           </div>
           <div class="form-group">
             <label for="editUtrip">Utrip (/min)</label>
-            <input type="number" id="editUtrip" min="30" max="220">
+            <input type="number" inputmode="numeric" id="editUtrip" min="30" max="220">
           </div>
           <div class="form-group">
             <label for="editRoka">Roka</label>
@@ -1005,15 +1007,24 @@
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
     catch(e) { return []; }
   }
+  // Vrne true ob uspehu. Če je shramba polna ali nedostopna (npr. zasebni
+  // način), uporabnika takoj opozorimo, da meritev NI shranjena.
   function shrani(podatki) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(podatki));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(podatki));
+      return true;
+    } catch (e) {
+      alert('NAPAKA: podatkov ni bilo mogoče shraniti - shramba brskalnika je polna ali nedostopna. Čim prej izvozite podatke (zavihek "Izvoz podatkov"), da jih ne izgubite.');
+      return false;
+    }
   }
   function nalozyProfil() {
     try { return JSON.parse(localStorage.getItem(PROFILE_KEY)) || {}; }
     catch(e) { return {}; }
   }
   function shraniProfilStorage(p) {
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); }
+    catch (e) { alert('NAPAKA: profila ni bilo mogoče shraniti - shramba brskalnika je polna ali nedostopna.'); }
   }
 
   let meritve = nalozi();
@@ -1071,11 +1082,11 @@
 
   // Funkcija za programsko preklapljanje med zavihki (uporablja jo tudi pasica o zasebnosti)
   function prikaziZavihek(ime) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => { t.classList.remove('active'); t.removeAttribute('aria-current'); });
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     const tabBtn = document.querySelector('.tab[data-tab="' + ime + '"]');
     const target = document.getElementById(ime);
-    if (tabBtn) tabBtn.classList.add('active');
+    if (tabBtn) { tabBtn.classList.add('active'); tabBtn.setAttribute('aria-current', 'page'); }
     if (target) {
       target.classList.add('active');
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1140,7 +1151,12 @@
 
     meritve.push(meritev);
     meritve.sort((a,b) => (a.datum + a.cas).localeCompare(b.datum + b.cas));
-    shrani(meritve);
+    if (!shrani(meritve)) {
+      // shranjevanje ni uspelo - meritev odstranimo tudi iz pomnilnika,
+      // da tabela ne kaže podatkov, ki jih v resnici ni; vnos ostane v obrazcu
+      meritve = meritve.filter(x => x.id !== meritev.id);
+      return;
+    }
 
     const kat = dolociKategorijo(sis, dia);
     const utripOcena = oceniUtrip(utrip);
@@ -1187,7 +1203,8 @@
     const dni = parseInt(filter);
     const meja = new Date();
     meja.setDate(meja.getDate() - dni);
-    return meritve.filter(m => new Date(m.datum) >= meja);
+    // Zapis z neveljavnim datumom raje pokažemo, kot da bi tiho izginil
+    return meritve.filter(m => { const d = new Date(m.datum); return isNaN(d) || d >= meja; });
   }
 
   // ============= DNEVNI PREGLED (jutro / popoldne / vecer) =============
@@ -1354,7 +1371,12 @@
       return;
     }
 
-    const povprecje = (arr, key) => Math.round(arr.reduce((s, x) => s + x[key], 0) / arr.length);
+    // Povprečje samo čez veljavne vrednosti - zapis brez vrednosti (npr. iz
+    // starejše uvožene datoteke) sicer povzroči prikaz "NaN".
+    const povprecje = (arr, key) => {
+      const veljavne = arr.filter(x => x[key] != null && x[key] !== '' && !isNaN(x[key]));
+      return veljavne.length ? Math.round(veljavne.reduce((s, x) => s + Number(x[key]), 0) / veljavne.length) : null;
+    };
     const sisAvg = povprecje(filtrirane, 'sistolicni');
     const diaAvg = povprecje(filtrirane, 'diastolicni');
     const utripAvg = povprecje(filtrirane, 'utrip');
@@ -1373,7 +1395,7 @@
       </div>
       <div class="stat-card">
         <div class="label">Povprečni utrip</div>
-        <div class="value">${utripAvg}<span class="unit"> /min</span></div>
+        <div class="value">${utripAvg != null ? utripAvg : '-'}<span class="unit"> /min</span></div>
       </div>
       <div class="stat-card">
         <div class="label">Najvišji sistolični</div>
@@ -1609,7 +1631,12 @@
     csv += 'Datum;Cas;Obdobje;Sistolicni (mm Hg);Diastolicni (mm Hg);Utrip (st./min);Roka;Kategorija;Opomba\n';
     meritve.forEach(m => {
       const kat = dolociKategorijo(m.sistolicni, m.diastolicni);
-      const opomba = (m.opomba || '').replace(/;/g, ',').replace(/\n/g, ' ');
+      // RFC 4180: polje z narekovaji ali podpičjem ovijemo v narekovaje,
+      // notranje narekovaje podvojimo - sicer tak zapis podre strukturo CSV
+      const opombaSurova = (m.opomba || '').replace(/\r?\n/g, ' ');
+      const opomba = /[";]/.test(opombaSurova)
+        ? '"' + opombaSurova.replace(/"/g, '""') + '"'
+        : opombaSurova;
       const roka = m.roka || '';
       csv += `${datumVSL(m.datum)};${m.cas};${m.obdobje};${m.sistolicni};${m.diastolicni};${m.utrip};${roka};${kat.ime};${opomba}\n`;
     });
@@ -1633,16 +1660,47 @@
     reader.onload = e => {
       try {
         const data = JSON.parse(e.target.result);
-        if (!data.meritve) throw new Error('Napačna oblika datoteke');
-        if (!confirm(`Najdenih ${data.meritve.length} meritev. To bo nadomestilo trenutne podatke. Nadaljevati?`)) return;
-        meritve = data.meritve;
+        if (!data || !Array.isArray(data.meritve)) throw new Error('Napačna oblika datoteke');
+
+        // Preveri vsak zapis - pokvarjeni zapisi bi sicer podrli statistiko
+        // (NaN pri povprečjih) ali tiho izpadli iz časovnih filtrov.
+        const veljavne = [];
+        let zavrnjenih = 0;
+        data.meritve.forEach(m => {
+          const sis = parseInt(m && m.sistolicni, 10);
+          const dia = parseInt(m && m.diastolicni, 10);
+          const utrip = parseInt(m && m.utrip, 10);
+          const datumOk = m && typeof m.datum === 'string' && !isNaN(new Date(m.datum + 'T00:00:00').getTime());
+          if (!datumOk || isNaN(sis) || isNaN(dia) || isNaN(utrip)) { zavrnjenih++; return; }
+          veljavne.push({
+            id: typeof m.id === 'number' ? m.id : Date.now() + veljavne.length,
+            datum: m.datum,
+            cas: typeof m.cas === 'string' ? m.cas : '',
+            obdobje: m.obdobje || 'drugo',
+            sistolicni: sis,
+            diastolicni: dia,
+            utrip: utrip,
+            roka: m.roka || '',
+            opomba: typeof m.opomba === 'string' ? m.opomba : ''
+          });
+        });
+        if (veljavne.length === 0) throw new Error('v datoteki ni nobene veljavne meritve');
+
+        const opozorilo = zavrnjenih > 0 ? ` Pozor: ${zavrnjenih} neveljavnih zapisov bo izpuščenih.` : '';
+        if (!confirm(`Najdenih ${veljavne.length} veljavnih meritev.${opozorilo} To bo nadomestilo trenutne podatke. Nadaljevati?`)) return;
+
+        const prejsnje = meritve;
+        meritve = veljavne;
+        meritve.sort((a,b) => (a.datum + a.cas).localeCompare(b.datum + b.cas));
+        if (!shrani(meritve)) { meritve = prejsnje; return; } // ob neuspehu povrnemo stare podatke
         if (data.profil) { profil = data.profil; shraniProfilStorage(profil); nastaviProfil(); }
-        shrani(meritve);
         osveziTabelo();
         zabeleziIzvoz(); // uvožena datoteka pomeni, da varnostna kopija obstaja
-        alert('Podatki uvoženi!');
+        alert('Podatki uvoženi!' + (zavrnjenih > 0 ? ` Izpuščenih ${zavrnjenih} neveljavnih zapisov.` : ''));
       } catch(err) {
         alert('Napaka pri branju datoteke: ' + err.message);
+      } finally {
+        event.target.value = ''; // omogoči ponoven uvoz iste datoteke
       }
     };
     reader.readAsText(file);
@@ -1664,7 +1722,12 @@
     const okno = window.open('', '_blank');
     const d = new Date();
     const danes = `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`;
-    const povprecje = (arr, key) => Math.round(arr.reduce((s, x) => s + x[key], 0) / arr.length);
+    // Povprečje samo čez veljavne vrednosti - zapis brez vrednosti (npr. iz
+    // starejše uvožene datoteke) sicer povzroči prikaz "NaN".
+    const povprecje = (arr, key) => {
+      const veljavne = arr.filter(x => x[key] != null && x[key] !== '' && !isNaN(x[key]));
+      return veljavne.length ? Math.round(veljavne.reduce((s, x) => s + Number(x[key]), 0) / veljavne.length) : null;
+    };
     const sisAvg = povprecje(meritve, 'sistolicni');
     const diaAvg = povprecje(meritve, 'diastolicni');
     const utripAvg = povprecje(meritve, 'utrip');
@@ -1714,7 +1777,7 @@
       <div><strong>Skupaj meritev:</strong> ${meritve.length}</div>
       <div><strong>Obdobje:</strong> ${formatDate(meritve[0].datum)} - ${formatDate(meritve[meritve.length-1].datum)}</div>
       <div><strong>Povprečni tlak:</strong> ${sisAvg}/${diaAvg} mm Hg</div>
-      <div><strong>Povprečni utrip:</strong> ${utripAvg} /min</div>
+      <div><strong>Povprečni utrip:</strong> ${utripAvg != null ? utripAvg : '-'} /min</div>
     </div>
     <h2>Dnevni pregled (jutro / popoldne / večer)</h2>
     <table><thead><tr>
@@ -1803,7 +1866,12 @@
       jutroVklop: document.getElementById('opomnikJutroVklop').value,
       vecerVklop: document.getElementById('opomnikVecerVklop').value
     };
-    localStorage.setItem(OPOMNIKI_KEY, JSON.stringify(nastavitve));
+    try { localStorage.setItem(OPOMNIKI_KEY, JSON.stringify(nastavitve)); }
+    catch (e) {
+      document.getElementById('opomnikiInfo').innerHTML =
+        '<div class="status-box crisis" style="margin-top: 20px;">Nastavitev ni bilo mogoče shraniti - shramba brskalnika je polna ali nedostopna.</div>';
+      return;
+    }
     document.getElementById('opomnikiInfo').innerHTML =
       '<div class="status-box optimal" style="margin-top: 20px;">Nastavitve so shranjene.</div>';
   }
@@ -1959,6 +2027,7 @@
 
   // ============= UREJANJE MERITEV =============
   let urejaSeId = null;
+  let modalOdpiralec = null; // element, ki je odprl modal - fokus vrnemo nanj
 
   function odpriUrediModal(id) {
     const m = meritve.find(x => x.id === id);
@@ -1972,13 +2041,24 @@
     document.getElementById('editUtrip').value = m.utrip;
     document.getElementById('editRoka').value = m.roka || '';
     document.getElementById('editOpomba').value = m.opomba || '';
+    modalOdpiralec = document.activeElement;
     document.getElementById('urediModal').classList.add('active');
+    document.getElementById('editDatum').focus();
   }
 
   function zapriUrediModal() {
     document.getElementById('urediModal').classList.remove('active');
     urejaSeId = null;
+    if (modalOdpiralec && typeof modalOdpiralec.focus === 'function') modalOdpiralec.focus();
+    modalOdpiralec = null;
   }
+
+  // Tipka Escape zapre modal
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('urediModal').classList.contains('active')) {
+      zapriUrediModal();
+    }
+  });
 
   function shraniUrejanje() {
     if (urejaSeId === null) return;
@@ -1996,6 +2076,7 @@
       return;
     }
 
+    const original = meritve[i];
     meritve[i] = {
       ...meritve[i],
       datum: datum,
@@ -2009,7 +2090,13 @@
     };
 
     meritve.sort((a,b) => (a.datum + a.cas).localeCompare(b.datum + b.cas));
-    shrani(meritve);
+    if (!shrani(meritve)) {
+      // shranjevanje ni uspelo - povrnemo prvotni zapis, modal ostane odprt
+      const j = meritve.findIndex(x => x.id === urejaSeId);
+      if (j !== -1) meritve[j] = original;
+      meritve.sort((a,b) => (a.datum + a.cas).localeCompare(b.datum + b.cas));
+      return;
+    }
     zapriUrediModal();
     osveziTabelo();
   }
@@ -2106,10 +2193,48 @@
   // ============= PWA: SERVICE WORKER =============
   // Omogoči namestitev na telefon in delovanje brez interneta.
   // Na file:// (odpiranje datoteke z diska) service worker ne deluje - preskočimo.
+
+  // Pokaže trak "Na voljo je nova različica" z gumbom Osveži. Nova različica
+  // se aktivira šele, ko uporabnik klikne - da mu sredi vnosa ne osvežimo strani.
+  function prikaziPosodobitevTrak(cakajoci) {
+    if (document.getElementById('posodobitevTrak')) return;
+    const trak = document.createElement('div');
+    trak.id = 'posodobitevTrak';
+    trak.setAttribute('role', 'status');
+    trak.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:1000;background:#2c3e50;color:#fff;padding:12px 16px;display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;font-size:0.95em;box-shadow:0 -2px 8px rgba(0,0,0,0.2);';
+    trak.innerHTML = '<span>Na voljo je nova različica aplikacije.</span>';
+    const gumb = document.createElement('button');
+    gumb.textContent = 'Osveži';
+    gumb.style.cssText = 'background:#27ae60;color:#fff;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-size:1em;';
+    gumb.onclick = () => { gumb.disabled = true; cakajoci.postMessage('SKIP_WAITING'); };
+    trak.appendChild(gumb);
+    document.body.appendChild(trak);
+  }
+
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js')
+        .then((reg) => {
+          // nova različica že čaka (npr. prenešena ob prejšnjem obisku)
+          if (reg.waiting && navigator.serviceWorker.controller) prikaziPosodobitevTrak(reg.waiting);
+          // nova različica se prenaša zdaj
+          reg.addEventListener('updatefound', () => {
+            const novi = reg.installing;
+            if (!novi) return;
+            novi.addEventListener('statechange', () => {
+              if (novi.state === 'installed' && navigator.serviceWorker.controller) prikaziPosodobitevTrak(novi);
+            });
+          });
+        })
         .catch(err => console.log('Service worker ni bil registriran:', err));
+      // Ko NOVI service worker prevzame nadzor, stran osvežimo. Ob čisto prvem
+      // obisku clients.claim() prav tako sproži controllerchange - takrat ne
+      // osvežujemo, ker uporabnik že gleda najnovejšo različico.
+      let imelKontrolerja = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!imelKontrolerja) { imelKontrolerja = true; return; }
+        location.reload();
+      });
     });
   }
 
