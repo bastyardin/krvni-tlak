@@ -1,0 +1,8 @@
+# sistemske datoteke macOS
+.DS_Store
+
+# lokalne nastavitve orodij
+.claude/
+
+# osebna navodila (niso del aplikacije)
+Navodila-*.docx
